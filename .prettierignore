@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+pnpm-lock.yaml
+requirements/
+.ai-factory/
+.claude/
+.serena/
+*.tgz
+.ai-factory.json
+.mcp.json
+AGENTS.md
+# Копии verdeect-platform — не переформатируются (сверяются с источником побайтно)
+src/core/codes.ts
+test/fixtures/

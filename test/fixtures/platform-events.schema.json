@@ -1,0 +1,557 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://platform.api.verdeect.ru/contracts/events/platform-events.schema.json",
+  "title": "Сообщения platform.* (prd.md §9.2, FR-9)",
+  "description": "Публикуются в verdeect.events, routing key = type. Строки пишут триггеры drizzle/0003_outbox_triggers.sql; для kind = platform событий нет (D5).",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/company_created"
+    },
+    {
+      "$ref": "#/$defs/company_updated"
+    },
+    {
+      "$ref": "#/$defs/member_added"
+    },
+    {
+      "$ref": "#/$defs/member_changed"
+    },
+    {
+      "$ref": "#/$defs/member_removed"
+    },
+    {
+      "$ref": "#/$defs/policy_changed"
+    },
+    {
+      "$ref": "#/$defs/module_changed"
+    },
+    {
+      "$ref": "#/$defs/limits_changed"
+    }
+  ],
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^_?[a-z0-9][a-z0-9-]{0,48}$"
+    },
+    "envelope": {
+      "description": "Конверт 01 §7.1; actor — сервис Platform (D17), subject — {kind, id} (§9.2).",
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "version",
+        "occurredAt",
+        "tenant",
+        "actor",
+        "subject",
+        "data",
+        "traceId"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^evt_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "type": {
+          "type": "string"
+        },
+        "version": {
+          "const": 1
+        },
+        "occurredAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "tenant": {
+          "$ref": "#/$defs/slug"
+        },
+        "actor": {
+          "type": "object",
+          "required": ["clientId", "accountId", "channel"],
+          "properties": {
+            "clientId": {
+              "enum": ["verdeect-platform", "verdeect-platform-cli"]
+            },
+            "accountId": {
+              "type": "null"
+            },
+            "channel": {
+              "const": "system"
+            }
+          },
+          "additionalProperties": false
+        },
+        "subject": {
+          "type": "object",
+          "required": ["kind", "id"],
+          "properties": {
+            "kind": {
+              "enum": ["company", "member"]
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "data": {
+          "type": "object"
+        },
+        "traceId": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "company_created_data": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tenant": {
+          "$ref": "#/$defs/slug"
+        },
+        "subtitle": {
+          "type": "null"
+        },
+        "planKey": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["tenantId", "tenant", "subtitle", "planKey"],
+      "additionalProperties": false
+    },
+    "company_created": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "platform.company.created"
+        },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "company"
+            }
+          }
+        },
+        "data": {
+          "$ref": "#/$defs/company_created_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "company_updated_data": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tenant": {
+          "$ref": "#/$defs/slug"
+        },
+        "subtitle": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "planKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "changed": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["subtitle", "plan"]
+          }
+        }
+      },
+      "required": ["tenantId", "tenant", "subtitle", "planKey", "changed"],
+      "additionalProperties": false
+    },
+    "company_updated": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "platform.company.updated"
+        },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "company"
+            }
+          }
+        },
+        "data": {
+          "$ref": "#/$defs/company_updated_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "member_added_data": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "memberId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sub": {
+          "type": "string",
+          "minLength": 1
+        },
+        "roles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "status": {
+          "const": "active"
+        }
+      },
+      "required": ["tenantId", "memberId", "sub", "roles", "status"],
+      "additionalProperties": false
+    },
+    "member_added": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "platform.member.added"
+        },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "member"
+            }
+          }
+        },
+        "data": {
+          "$ref": "#/$defs/member_added_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "member_changed_data": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "memberId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sub": {
+          "type": "string",
+          "minLength": 1
+        },
+        "roles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "status": {
+          "enum": ["active", "disabled"]
+        },
+        "changed": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["roles", "status"]
+          }
+        }
+      },
+      "required": ["tenantId", "memberId", "sub", "roles", "status", "changed"],
+      "additionalProperties": false
+    },
+    "member_changed": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "platform.member.changed"
+        },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "member"
+            }
+          }
+        },
+        "data": {
+          "$ref": "#/$defs/member_changed_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "member_removed_data": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "memberId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sub": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["tenantId", "memberId", "sub"],
+      "additionalProperties": false
+    },
+    "member_removed": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "platform.member.removed"
+        },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "member"
+            }
+          }
+        },
+        "data": {
+          "$ref": "#/$defs/member_removed_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "policy_changed_data": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "epoch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reason": {
+          "enum": [
+            "member_roles",
+            "member_removed",
+            "account_disabled",
+            "company_suspended",
+            "modules",
+            "role_catalog"
+          ]
+        },
+        "subs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": ["tenantId", "epoch", "reason"],
+      "additionalProperties": false
+    },
+    "policy_changed": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "platform.policy.changed"
+        },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "company"
+            }
+          }
+        },
+        "data": {
+          "$ref": "#/$defs/policy_changed_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "module_changed_data": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "modules": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "enum": [
+                  "files",
+                  "knowledge",
+                  "web",
+                  "office",
+                  "images",
+                  "kanban",
+                  "calendar",
+                  "workers",
+                  "agents",
+                  "dashboard",
+                  "reports",
+                  "connections"
+                ]
+              },
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": ["id", "enabled"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["tenantId", "modules"],
+      "additionalProperties": false
+    },
+    "module_changed": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "platform.module.changed"
+        },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "company"
+            }
+          }
+        },
+        "data": {
+          "$ref": "#/$defs/module_changed_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "limits_changed_data": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "changed": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "members",
+              "storageMb",
+              "fileSizeMb",
+              "modelRequestsPerMonth",
+              "modelRequestsPerMemberPerMonth",
+              "concurrentChats",
+              "assistants"
+            ]
+          }
+        }
+      },
+      "required": ["tenantId", "changed"],
+      "additionalProperties": false
+    },
+    "limits_changed": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "platform.limits.changed"
+        },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "company"
+            }
+          }
+        },
+        "data": {
+          "$ref": "#/$defs/limits_changed_data"
+        }
+      },
+      "unevaluatedProperties": false
+    }
+  }
+}

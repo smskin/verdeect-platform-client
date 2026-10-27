@@ -1,0 +1,3 @@
+# Настройки pnpm для репозитория из одного пакета (списка packages нет).
+# minimumReleaseAge — явно не задан, действует значение pnpm по умолчанию (сутки) — .ai-factory/rules/base.md.
+# Исключения minimumReleaseAgeExclude — только с обоснованием и условием снятия.
