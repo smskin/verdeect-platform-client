@@ -60,6 +60,7 @@ verdeect-platform-client/
 ├── tsconfig.json / tsconfig.build.json
 ├── eslint.config.js / .prettierrc.json
 ├── vitest.config.ts / vitest.perf.config.ts
+├── Makefile                      # install, lint, analyse, test, build, pack-check, ci, clean
 ├── requirements/                 # пакеты требований
 │   ├── INDEX.md
 │   └── 0000-platform-client/     # prd.md, README.md (этапы E1–E3)
@@ -71,17 +72,20 @@ verdeect-platform-client/
 
 ## Команды
 
+Единая точка входа — `Makefile` (`make help`), все цели на хосте:
+
 ```bash
-pnpm install         # зависимости по pnpm-lock.yaml
-pnpm typecheck       # tsc --noEmit
-pnpm lint            # ESLint (TSDoc, границы ядра)
-pnpm format:check    # Prettier
-pnpm test            # слой U: test/unit
-pnpm test:perf       # AC-17: test/perf с --expose-gc
-pnpm build           # dist/ (.js + .d.ts)
+make install         # pnpm install --frozen-lockfile
+make lint            # ESLint (TSDoc, границы ядра) + Prettier check
+make analyse         # tsc --noEmit
+make test            # слой U (test/unit), затем perf AC-17; make test FILTER='AC-6'
+make build           # dist/ (.js + .d.ts)
+make pack-check      # publint --strict + attw esm-only
+make ci              # lint analyse test build pack-check
+make clean           # dist, coverage, *.tgz
 ```
 
-Makefile и CI появятся после E1 (`/aif-build-automation`, `/aif-ci`).
+`make test-contract` (слой C) появится в E3, CI — после `/aif-ci`.
 
 ## Ключевые точки входа
 
@@ -94,7 +98,7 @@ Makefile и CI появятся после E1 (`/aif-build-automation`, `/aif-ci
 | `src/nest/index.ts` (E2) | `@verdeect/platform-client/nest` — модуль, декоратор, guard |
 | `src/testing/index.ts` (E2) | `@verdeect/platform-client/testing` — `createFakePlatform` |
 | `package.json` | `exports` трёх подпутей, peer-зависимости |
-| `Makefile` (после E1) | единая точка входа для проверок (`make ci`, `make test-contract`) |
+| `Makefile` | единая точка входа для проверок (`make ci`, `make test-contract`) |
 
 ## Документация
 

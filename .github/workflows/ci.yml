@@ -1,0 +1,77 @@
+# CI @verdeect/platform-client (prd.md D1, D10, AC-17; образец — verdeect-auth ci.yml).
+#
+# Jobs, связанные через needs: lint → test → build; каждый ставит зависимости сам (make install).
+# Проверки — на каждый push в ветку и pull_request. test — матрица Node 22 и 24 (engines.node ">=22.12"),
+# включает perf-набор AC-17; lint и build — Node 22 (минимальная поддерживаемая версия).
+# Контрактные тесты (make test-contract, слой C) в CI не запускаются — только локально перед тегом (D10).
+# Job publish (тег v<semver>, environment `npm`, ruleset на теги v*, npm Trusted Publishing через OIDC,
+# scripts/publish.mjs) добавляет этап E3. Секретов нет. continue-on-error нигде не используется.
+name: ci
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: make install
+        run: make install
+      - name: make lint
+        run: make lint
+      - name: make analyse
+        run: make analyse
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - name: make install
+        run: make install
+      - name: make test
+        run: make test
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: make install
+        run: make install
+      - name: make build pack-check
+        run: make build pack-check
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
