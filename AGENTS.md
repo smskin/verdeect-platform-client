@@ -11,14 +11,14 @@
 - **Язык:** TypeScript (ESM, Node ≥ 22.12; CI — Node 22 и 24)
 - **Runtime-зависимость:** `zod` 4.6.7, единственная
 - **Фреймворк:** NestJS 12 и `@verdeect/auth` ^1.0.1 — необязательные peer-зависимости подпути `nest`
-- **Тесты:** Vitest (unit, perf с `--expose-gc`, проверки пакета). Testcontainers — только контрактные тесты, локально.
+- **Тесты:** Vitest (unit, perf с `--expose-gc`, проверки пакета, контракт). Testcontainers, `amqplib` — только слой C (`make test-contract`), локально.
 - **Пакетный менеджер:** pnpm
 - **CI и выпуск:** GitHub Actions. Публикация — через npm Trusted Publishing, только по тегу `v<semver>`.
-- **БД, ORM, брокер, Docker, HTTP-сервер:** нет, это библиотека.
+- **БД, ORM, брокер, HTTP-сервер:** нет, это библиотека. Docker нужен только `make test-contract` (слой C).
 
 ## Структура проекта
 
-Этапы E1 (ядро) и E2 (Nest и подделка) готовы. Помеченное «(E3)» появится на этапе E3 (PRD §4).
+Этапы E1 (ядро), E2 (Nest и подделка) и E3 (контракт и выпуск) готовы.
 
 ```
 verdeect-platform-client/
@@ -48,21 +48,36 @@ verdeect-platform-client/
 │       └── catalog.ts            # копия каталога прав и модулей Platform (источник + коммит)
 ├── test/
 │   ├── unit/                     # слой U: *.spec.ts ядра, nest (@nestjs/testing + Fastify) и testing
+│   │   ├── identity-events.spec.ts  # §7 п. 7: образцы конвертов identity.* слоя C по копии схемы
+│   │   ├── contract-broker.spec.ts  # AC-15 (C): разбор platform.policy.changed без Docker
 │   │   └── support/              # подделанные fetch, часы, logger, metrics, TokenProvider; nest-app.ts; setup.ts (AC-19)
 │   ├── perf/                     # check.perf.spec.ts — p99 и память снимка (AC-17)
-│   ├── fixtures/                 # platform-events.schema.json (копия Platform), SOURCES.md
-│   ├── contract/                 # (E3) слой C против образа verdeect-platform; support/platform-stand.ts
-│   ├── package/                  # проверки архива (AC-12): consumer.spec.ts, support/pack.ts, consumer-project.ts
-│   └── consumer/                 # шаблоны проектов-потребителей архива: core, nest-no-auth, full
-├── docs/                         # (E3) getting-started, nestjs, testing, errors, releasing
-├── scripts/publish.mjs           # (E3) публикация из CI
-├── .github/workflows/ci.yml      # (после E1, по образцу verdeect-auth)
+│   ├── fixtures/                 # platform-events.schema.json, identity-events.schema.json (копии Platform), SOURCES.md
+│   ├── contract/                 # слой C против образа verdeect-platform (D10), только make test-contract
+│   │   ├── ac-13-catalog.spec.ts      # AC-13, AC-15 (C), UC-1: каталог, raw.check, COMPANY_SUSPENDED
+│   │   ├── ac-14-revocation.spec.ts   # AC-14, AC-15 (C), UC-2: member:grant/revoke, CONTEXT_REVOKED, minEpoch
+│   │   ├── ac-15-scope.spec.ts        # AC-15 (C): SCOPE_REQUIRED без platform:authz
+│   │   └── support/
+│   │       ├── global-setup.ts        # globalSetup: образ → стенд → provide; отчёт «[contract] Platform: <commit>»
+│   │       ├── platform-image.ts      # docker build ../verdeect-platform или PLATFORM_IMAGE; коммит, dirty
+│   │       ├── platform-stand.ts      # §7 п. 1–5, 9: сеть, PostgreSQL, RabbitMQ, издатель, db:prepare → migrate → plan:apply, сервис
+│   │       ├── identity-events.ts     # построители конвертов identity.*, проверка ajv по копиям схем
+│   │       ├── broker.ts              # очередь теста platform.policy.changed (ajv + zod), публикация identity.*
+│   │       ├── platform-cli.ts        # member:grant/revoke через docker exec, хвост docker logs
+│   │       └── contract-client.ts     # клиент пакета с записью вызовов, waitFor 5 с, prepareMember
+│   ├── package/                  # проверки архива: consumer.spec.ts (AC-12, AC-16), release.spec.ts (AC-16, NFR-6, D10), docs.spec.ts (§4, NFR-5, D1)
+│   │   └── support/              # pack.ts (runCommand с env), consumer-project.ts
+│   └── consumer/                 # шаблоны проектов-потребителей архива: core, nest-no-auth, full (exports-import.mjs — AC-16)
+├── docs/                         # getting-started, nestjs, testing, errors, releasing
+├── scripts/publish.mjs           # публикация из CI: тег = version, версии нет в npm (AC-16)
+├── .github/workflows/ci.yml      # lint → test → build (pack-check) → publish по тегу v* (Trusted Publishing)
+├── README.md / CHANGELOG.md      # посадочная страница, таблица совместимости; изменения по версиям
 ├── package.json                  # exports трёх подпутей, peer-зависимости optional
 ├── pnpm-workspace.yaml           # настройки pnpm
 ├── tsconfig.json / tsconfig.build.json
 ├── eslint.config.js / .prettierrc.json
-├── vitest.config.ts / vitest.perf.config.ts / vitest.package.config.ts
-├── Makefile                      # install, lint, analyse, test, build, pack-check, ci, clean
+├── vitest.config.ts / vitest.perf.config.ts / vitest.package.config.ts / vitest.contract.config.ts
+├── Makefile                      # install, lint, analyse, test, test-contract, build, pack-check, ci, clean
 ├── requirements/                 # пакеты требований
 │   ├── INDEX.md
 │   └── 0000-platform-client/     # prd.md, README.md (этапы E1–E3)
@@ -74,7 +89,7 @@ verdeect-platform-client/
 
 ## Команды
 
-Единая точка входа — `Makefile` (`make help`), все цели на хосте:
+Единая точка входа — `Makefile` (`make help`), все цели на хосте; Docker нужен только `test-contract`:
 
 ```bash
 make install         # pnpm install --frozen-lockfile
@@ -82,13 +97,12 @@ make lint            # ESLint (TSDoc, границы ядра) + Prettier check
 make analyse         # tsc --noEmit
 make test            # слой U (test/unit), затем perf AC-17; make test FILTER='AC-6'
 make build           # dist/ (.js + .d.ts)
-make pack-check      # publint --strict + attw esm-only + проекты-потребители (AC-12)
+make test-contract   # слой C в Testcontainers (локально, не в ci); PLATFORM_IMAGE=<ref> PLATFORM_COMMIT=<sha>
+make pack-check      # pnpm pack:check: publint --strict + attw esm-only + test:package (AC-12, AC-16)
 make test-package    # только проекты-потребители упакованного архива (после build)
 make ci              # lint analyse test build pack-check
 make clean           # dist, coverage, *.tgz
 ```
-
-`make test-contract` (слой C) появится в E3, CI — после `/aif-ci`.
 
 ## Ключевые точки входа
 
@@ -100,6 +114,8 @@ make clean           # dist, coverage, *.tgz
 | `src/core/client.ts` | `createPlatformAuthzClient`: оркестровка кэша, свежести и запросов |
 | `src/nest/index.ts` | `@verdeect/platform-client/nest` — модуль, декоратор, guard |
 | `src/testing/index.ts` | `@verdeect/platform-client/testing` — `createFakePlatform` |
+| `test/contract/support/global-setup.ts` | стенд слоя C и отчёт коммита Platform (D10) |
+| `scripts/publish.mjs` | публикация из CI по тегу |
 | `package.json` | `exports` трёх подпутей, peer-зависимости |
 | `Makefile` | единая точка входа для проверок (`make ci`, `make test-contract`) |
 
@@ -110,6 +126,12 @@ make clean           # dist, coverage, *.tgz
 | PRD | `requirements/0000-platform-client/prd.md` | требования к библиотеке |
 | Этапы | `requirements/0000-platform-client/README.md` | E1 «Ядро клиента», E2 «Nest и подделка», E3 «Контракт и выпуск» |
 | Индекс требований | `requirements/INDEX.md` | список пакетов требований |
+| README | `README.md` | установка, подключение, тесты потребителя, совместимость, API |
+| Ядро | `docs/getting-started.md` | клиент, токен, решение, события, кэш, метрики |
+| NestJS | `docs/nestjs.md` | модуль, `@RequirePermission`, ответы guard |
+| Тесты сервиса | `docs/testing.md` | `createFakePlatform`, условие `development` |
+| Ошибки | `docs/errors.md` | коды решений, ошибки, fail-closed |
+| Выпуск | `docs/releasing.md` | чек-лист выпуска, Trusted Publishing, ручной 1.0.0 |
 
 ## Файлы контекста ИИ
 

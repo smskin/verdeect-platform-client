@@ -5,7 +5,12 @@
 | Файл | Источник | Коммит |
 |---|---|---|
 | `platform-events.schema.json` | `apps/platform/contracts/events/platform-events.schema.json` | `7adb423` |
+| `identity-events.schema.json` | `apps/platform/contracts/events/identity-events.schema.json` | `7adb423` |
 
-Перекопировать: `git -C ../verdeect-platform show <commit>:apps/platform/contracts/events/platform-events.schema.json > test/fixtures/platform-events.schema.json`.
+Перекопировать (`<file>` — имя файла из таблицы):
 
-`identity-events.schema.json` (слой C, prd.md §7 п. 7) добавляется на этапе E3.
+```bash
+git -C ../verdeect-platform show <commit>:apps/platform/contracts/events/<file> > test/fixtures/<file>
+```
+
+`identity-events.schema.json` — для конвертов `identity.*`, которые публикует слой C (prd.md §7 п. 7).

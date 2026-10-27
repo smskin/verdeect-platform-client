@@ -1,0 +1,543 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://id.verdeect.ru/contracts/events/identity-events.schema.json",
+  "$comment": "Копия verdeect-identity/apps/identity/contracts/events/identity-events.schema.json @ 9ddb630, sha256 0f15beb4d2ee73f591484fee32aa9a096bd5f5b5add5d9cbf923fc4e7e08f878. Не править вручную: обновлять копированием и пересчётом sha256 (prd.md §3.2, §9).",
+  "title": "Сообщения identity.* (prd.md §10, FR-73)",
+  "description": "Публикуются в verdeect.events, routing key = type. Строки пишут триггеры drizzle/0004_outbox_triggers.sql.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/account_created"
+    },
+    {
+      "$ref": "#/$defs/account_updated"
+    },
+    {
+      "$ref": "#/$defs/account_disabled"
+    },
+    {
+      "$ref": "#/$defs/account_enabled"
+    },
+    {
+      "$ref": "#/$defs/organization_created"
+    },
+    {
+      "$ref": "#/$defs/organization_updated"
+    },
+    {
+      "$ref": "#/$defs/organization_disabled"
+    },
+    {
+      "$ref": "#/$defs/membership_added"
+    },
+    {
+      "$ref": "#/$defs/membership_removed"
+    },
+    {
+      "$ref": "#/$defs/session_terminated"
+    }
+  ],
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^_?[a-z0-9][a-z0-9-]{0,48}$"
+    },
+    "envelope": {
+      "description": "Конверт 01 §7.1; actor расширен clientId, onBehalfOf (prd.md §10).",
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "version",
+        "occurredAt",
+        "tenant",
+        "actor",
+        "subject",
+        "data",
+        "traceId"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^evt_[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "type": {
+          "type": "string"
+        },
+        "version": {
+          "const": 1
+        },
+        "occurredAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "tenant": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/slug"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actor": {
+          "type": "object",
+          "required": ["clientId", "channel"],
+          "properties": {
+            "clientId": {
+              "type": ["string", "null"]
+            },
+            "accountId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "onBehalfOf": {
+              "type": "string",
+              "minLength": 1
+            },
+            "channel": {
+              "enum": ["human", "agent", "system"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "subject": {
+          "type": "object",
+          "required": ["kind", "id"],
+          "properties": {
+            "kind": {
+              "enum": ["account", "organization", "member", "session"]
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "data": {
+          "type": "object"
+        },
+        "traceId": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "account_created_data": {
+      "type": "object",
+      "properties": {
+        "sub": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "email": {
+          "type": "string",
+          "minLength": 1
+        },
+        "givenName": {
+          "type": "string"
+        },
+        "familyName": {
+          "type": "string"
+        },
+        "middleName": {
+          "type": ["string", "null"]
+        },
+        "emailVerified": {
+          "type": "boolean"
+        }
+      },
+      "required": ["sub", "email", "givenName", "familyName", "middleName", "emailVerified"],
+      "additionalProperties": false
+    },
+    "account_created": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "identity.account.created"
+        },
+        "tenant": {
+          "type": "null"
+        },
+        "data": {
+          "$ref": "#/$defs/account_created_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "account_updated_data": {
+      "type": "object",
+      "properties": {
+        "sub": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "changed": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["email", "given_name", "family_name", "middle_name", "email_verified"]
+          }
+        }
+      },
+      "required": ["sub", "changed"],
+      "additionalProperties": false
+    },
+    "account_updated": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "identity.account.updated"
+        },
+        "tenant": {
+          "type": "null"
+        },
+        "data": {
+          "$ref": "#/$defs/account_updated_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "account_disabled_data": {
+      "type": "object",
+      "properties": {
+        "sub": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["sub"],
+      "additionalProperties": false
+    },
+    "account_disabled": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "identity.account.disabled"
+        },
+        "tenant": {
+          "type": "null"
+        },
+        "data": {
+          "$ref": "#/$defs/account_disabled_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "account_enabled_data": {
+      "type": "object",
+      "properties": {
+        "sub": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": ["sub"],
+      "additionalProperties": false
+    },
+    "account_enabled": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "identity.account.enabled"
+        },
+        "tenant": {
+          "type": "null"
+        },
+        "data": {
+          "$ref": "#/$defs/account_enabled_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "organization_created_data": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenant": {
+          "type": "string",
+          "pattern": "^_?[a-z0-9][a-z0-9-]{0,48}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["tenantId", "tenant", "name"],
+      "additionalProperties": false
+    },
+    "organization_created": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "identity.organization.created"
+        },
+        "tenant": {
+          "$ref": "#/$defs/slug"
+        },
+        "data": {
+          "$ref": "#/$defs/organization_created_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "organization_updated_data": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenant": {
+          "type": "string",
+          "pattern": "^_?[a-z0-9][a-z0-9-]{0,48}$"
+        },
+        "changed": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["name", "disabled"]
+          }
+        }
+      },
+      "required": ["tenantId", "tenant", "changed"],
+      "additionalProperties": false
+    },
+    "organization_updated": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "identity.organization.updated"
+        },
+        "tenant": {
+          "$ref": "#/$defs/slug"
+        },
+        "data": {
+          "$ref": "#/$defs/organization_updated_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "organization_disabled_data": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenant": {
+          "type": "string",
+          "pattern": "^_?[a-z0-9][a-z0-9-]{0,48}$"
+        }
+      },
+      "required": ["tenantId", "tenant"],
+      "additionalProperties": false
+    },
+    "organization_disabled": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "identity.organization.disabled"
+        },
+        "tenant": {
+          "$ref": "#/$defs/slug"
+        },
+        "data": {
+          "$ref": "#/$defs/organization_disabled_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "membership_added_data": {
+      "type": "object",
+      "properties": {
+        "sub": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenant": {
+          "type": "string",
+          "pattern": "^_?[a-z0-9][a-z0-9-]{0,48}$"
+        },
+        "tenantId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "memberId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "invitationId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["sub", "tenant", "tenantId", "memberId", "invitationId"],
+      "additionalProperties": false
+    },
+    "membership_added": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "identity.membership.added"
+        },
+        "tenant": {
+          "$ref": "#/$defs/slug"
+        },
+        "data": {
+          "$ref": "#/$defs/membership_added_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "membership_removed_data": {
+      "type": "object",
+      "properties": {
+        "sub": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenant": {
+          "type": "string",
+          "pattern": "^_?[a-z0-9][a-z0-9-]{0,48}$"
+        },
+        "tenantId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "memberId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": ["sub", "tenant", "tenantId", "memberId"],
+      "additionalProperties": false
+    },
+    "membership_removed": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "identity.membership.removed"
+        },
+        "tenant": {
+          "$ref": "#/$defs/slug"
+        },
+        "data": {
+          "$ref": "#/$defs/membership_removed_data"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "session_terminated_data": {
+      "type": "object",
+      "properties": {
+        "sub": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sid": {
+          "type": "string",
+          "minLength": 1
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "enum": [
+            "sign_out",
+            "revoked",
+            "password_changed",
+            "password_reset",
+            "email_changed",
+            "disabled",
+            "refresh_reuse",
+            "unknown"
+          ]
+        }
+      },
+      "required": ["sub", "sid", "clientId", "reason"],
+      "additionalProperties": false
+    },
+    "session_terminated": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/envelope"
+        }
+      ],
+      "properties": {
+        "type": {
+          "const": "identity.session.terminated"
+        },
+        "tenant": {
+          "type": "null"
+        },
+        "data": {
+          "$ref": "#/$defs/session_terminated_data"
+        }
+      },
+      "unevaluatedProperties": false
+    }
+  }
+}

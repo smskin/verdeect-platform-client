@@ -1,16 +1,27 @@
-# CI @verdeect/platform-client (prd.md D1, D10, AC-17; образец — verdeect-auth ci.yml).
+# CI и выпуск @verdeect/platform-client (prd.md D1, D10, NFR-6, AC-16, AC-17; образец — verdeect-auth ci.yml).
 #
-# Jobs, связанные через needs: lint → test → build; каждый ставит зависимости сам (make install).
+# Jobs, связанные через needs: lint → test → build → publish; каждый ставит зависимости сам (make install).
 # Проверки — на каждый push в ветку и pull_request. test — матрица Node 22 и 24 (engines.node ">=22.12"),
-# включает perf-набор AC-17; lint и build — Node 22 (минимальная поддерживаемая версия).
+# включает perf-набор AC-17; lint и build — Node 22 (минимальная поддерживаемая версия); build — pack:check (AC-16).
+# publish — только на тег v<major>.<minor>.<patch> после зелёных проверок, GitHub-hosted runner, Node 24 и
+# npm >= 11.15: scripts/publish.mjs сверяет тег с version, проверяет, что версии нет в npm, и запускает
+# npm publish --access public из собранного dist/.
+#
+# Разовая настройка (docs/releasing.md):
+#   - environment `npm` с правилом развёртывания «только теги v*»;
+#   - ruleset на теги v*: создание — только мейнтейнеры, удаление и перезапись запрещены;
+#   - секретов нет: NPM_TOKEN / NODE_AUTH_TOKEN не используются, публикация только через OIDC (id-token: write);
+#   - 1.0.0 мейнтейнер публикует вручную (D1), затем npm trust github (smskin/verdeect-platform-client, ci.yml,
+#     environment npm) и запрет публикации токенами. Job publish для тега v1.0.0 падает на «версия уже
+#     опубликована» — это ожидаемо.
 # Контрактные тесты (make test-contract, слой C) в CI не запускаются — только локально перед тегом (D10).
-# Job publish (тег v<semver>, environment `npm`, ruleset на теги v*, npm Trusted Publishing через OIDC,
-# scripts/publish.mjs) добавляет этап E3. Секретов нет. continue-on-error нигде не используется.
+# continue-on-error нигде не используется.
 name: ci
 
 on:
   push:
     branches: ['**']
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
   pull_request:
 
 permissions:
@@ -18,7 +29,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   lint:
@@ -75,3 +86,32 @@ jobs:
           name: dist
           path: dist/
           if-no-files-found: error
+
+  publish:
+    needs: [lint, test, build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: npm
+    # Права job заменяют права workflow целиком: contents — для checkout, id-token — для npm Trusted Publishing (OIDC).
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      # Без registry-url: .npmrc с _authToken=${NODE_AUTH_TOKEN} не нужен, реестр по умолчанию — registry.npmjs.org.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      # Trusted Publishing требует npm >= 11.15; npm из Node 24 может быть старее.
+      - name: npm >= 11.15
+        run: npm install -g npm@^11.15.0
+      - name: npm version
+        run: npm --version
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      # Авторизация — только OIDC (Trusted Publishing): npm обменивает id-token на токен публикации. Секретов нет (D1).
+      - name: publish
+        run: node scripts/publish.mjs
