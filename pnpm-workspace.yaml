@@ -1,3 +1,7 @@
 # Настройки pnpm для репозитория из одного пакета (списка packages нет).
 # minimumReleaseAge — явно не задан, действует значение pnpm по умолчанию (сутки) — .ai-factory/rules/base.md.
 # Исключения minimumReleaseAgeExclude — только с обоснованием и условием снятия.
+# Сборка нативных пакетов: @swc/core — для unplugin-swc (метаданные декораторов Nest в Vitest), esbuild — для Vitest.
+allowBuilds:
+  '@swc/core': true
+  esbuild: true

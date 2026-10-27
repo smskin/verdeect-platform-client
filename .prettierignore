@@ -12,4 +12,5 @@ requirements/
 AGENTS.md
 # Копии verdeect-platform — не переформатируются (сверяются с источником побайтно)
 src/core/codes.ts
+src/testing/catalog.ts
 test/fixtures/

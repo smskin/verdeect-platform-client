@@ -50,7 +50,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:perf": "vitest run -c vitest.perf.config.ts"
+    "test:perf": "vitest run -c vitest.perf.config.ts",
+    "test:package": "vitest run -c vitest.package.config.ts"
   },
   "dependencies": {
     "zod": "4.6.7"
@@ -82,17 +83,27 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
     "@eslint/js": "10.0.1",
+    "@nestjs/common": "12.1.3",
+    "@nestjs/core": "12.1.3",
+    "@nestjs/platform-fastify": "12.1.3",
+    "@nestjs/testing": "12.1.3",
+    "@swc/core": "1.16.18",
     "@types/node": "22.20.5",
+    "@verdeect/auth": "1.0.1",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "eslint": "10.12.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-jsdoc": "65.4.0",
+    "fastify": "5.12.5",
     "globals": "17.13.0",
     "prettier": "3.9.10",
     "publint": "0.3.25",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
     "typescript": "5.9.3",
     "typescript-eslint": "8.71.2",
+    "unplugin-swc": "2.0.0",
     "vitest": "5.0.4"
   }
 }
