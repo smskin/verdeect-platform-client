@@ -18,7 +18,7 @@
 
 ## Структура проекта
 
-Ядро (этап E1) готово. Помеченное «(E2)», «(E3)» появится на соответствующем этапе (PRD §4); `src/nest/index.ts` и `src/testing/index.ts` пока пустые точки входа.
+Этапы E1 (ядро) и E2 (Nest и подделка) готовы. Помеченное «(E3)» появится на этапе E3 (PRD §4).
 
 ```
 verdeect-platform-client/
@@ -37,21 +37,23 @@ verdeect-platform-client/
 │   │   ├── decide.ts             # локальное решение check/checkMany (§5.2)
 │   │   └── client.ts             # createPlatformAuthzClient: оркестровка
 │   ├── nest/                     # адаптер NestJS — "./nest"
-│   │   ├── index.ts              # пустая точка входа до E2
-│   │   ├── platform-authz.module.ts         # (E2)
-│   │   ├── require-permission.decorator.ts  # (E2)
-│   │   └── permission.guard.ts              # (E2)
+│   │   ├── index.ts              # публичный контракт подпути nest
+│   │   ├── platform-authz.module.ts         # PlatformAuthzModule.forRoot/forRootAsync, PLATFORM_AUTHZ_CLIENT
+│   │   ├── require-permission.decorator.ts  # SetMetadata + UseGuards(PermissionGuard), TypeError без прав
+│   │   ├── permission.guard.ts              # Principal → Subject, checkMany, request.platformDecision
+│   │   └── responses.ts                     # тела и тексты ответов guard (§5.4)
 │   └── testing/                  # подделка Platform — "./testing" (только условие development)
-│       ├── index.ts              # пустая точка входа до E2
-│       ├── fake-platform.ts      # (E2) createFakePlatform
-│       └── catalog.ts            # (E2) копия каталога прав и модулей Platform
+│       ├── index.ts              # публичный контракт подпути testing
+│       ├── fake-platform.ts      # createFakePlatform: клиент ядра, транспорт в памяти
+│       └── catalog.ts            # копия каталога прав и модулей Platform (источник + коммит)
 ├── test/
-│   ├── unit/                     # слой U: *.spec.ts по модулям ядра и клиента
-│   │   └── support/              # подделанные fetch, часы, logger, metrics, TokenProvider; setup.ts (AC-19)
+│   ├── unit/                     # слой U: *.spec.ts ядра, nest (@nestjs/testing + Fastify) и testing
+│   │   └── support/              # подделанные fetch, часы, logger, metrics, TokenProvider; nest-app.ts; setup.ts (AC-19)
 │   ├── perf/                     # check.perf.spec.ts — p99 и память снимка (AC-17)
 │   ├── fixtures/                 # platform-events.schema.json (копия Platform), SOURCES.md
 │   ├── contract/                 # (E3) слой C против образа verdeect-platform; support/platform-stand.ts
-│   └── consumer/                 # (E2) проект-потребитель упакованного архива (AC-12)
+│   ├── package/                  # проверки архива (AC-12): consumer.spec.ts, support/pack.ts, consumer-project.ts
+│   └── consumer/                 # шаблоны проектов-потребителей архива: core, nest-no-auth, full
 ├── docs/                         # (E3) getting-started, nestjs, testing, errors, releasing
 ├── scripts/publish.mjs           # (E3) публикация из CI
 ├── .github/workflows/ci.yml      # (после E1, по образцу verdeect-auth)
@@ -59,7 +61,7 @@ verdeect-platform-client/
 ├── pnpm-workspace.yaml           # настройки pnpm
 ├── tsconfig.json / tsconfig.build.json
 ├── eslint.config.js / .prettierrc.json
-├── vitest.config.ts / vitest.perf.config.ts
+├── vitest.config.ts / vitest.perf.config.ts / vitest.package.config.ts
 ├── Makefile                      # install, lint, analyse, test, build, pack-check, ci, clean
 ├── requirements/                 # пакеты требований
 │   ├── INDEX.md
@@ -80,7 +82,8 @@ make lint            # ESLint (TSDoc, границы ядра) + Prettier check
 make analyse         # tsc --noEmit
 make test            # слой U (test/unit), затем perf AC-17; make test FILTER='AC-6'
 make build           # dist/ (.js + .d.ts)
-make pack-check      # publint --strict + attw esm-only
+make pack-check      # publint --strict + attw esm-only + проекты-потребители (AC-12)
+make test-package    # только проекты-потребители упакованного архива (после build)
 make ci              # lint analyse test build pack-check
 make clean           # dist, coverage, *.tgz
 ```
@@ -95,8 +98,8 @@ make clean           # dist, coverage, *.tgz
 | `requirements/0000-platform-client/README.md` | этапы E1–E3, готовность |
 | `src/core/index.ts` | `@verdeect/platform-client` — публичный контракт ядра |
 | `src/core/client.ts` | `createPlatformAuthzClient`: оркестровка кэша, свежести и запросов |
-| `src/nest/index.ts` (E2) | `@verdeect/platform-client/nest` — модуль, декоратор, guard |
-| `src/testing/index.ts` (E2) | `@verdeect/platform-client/testing` — `createFakePlatform` |
+| `src/nest/index.ts` | `@verdeect/platform-client/nest` — модуль, декоратор, guard |
+| `src/testing/index.ts` | `@verdeect/platform-client/testing` — `createFakePlatform` |
 | `package.json` | `exports` трёх подпутей, peer-зависимости |
 | `Makefile` | единая точка входа для проверок (`make ci`, `make test-contract`) |
 
@@ -135,6 +138,6 @@ make clean           # dist, coverage, *.tgz
 - Источник истины контракта — PRD §3, а за ним — `platform-lite/prd.md` v1.11 и код `verdeect-platform`. При расхождении сначала правится источник, потом PRD, потом код.
 - Ядро (`src/core/`) не импортирует `@nestjs/*`, `rxjs`, `reflect-metadata`, `@verdeect/auth`, `src/nest/`, `src/testing/`. `src/nest/` не импортирует `src/testing/`.
 - Копии из `verdeect-platform` не правятся вручную, только синхронизируются с источником. Коммит источника указывается в шапке.
-- Новый публичный экспорт добавляется вместе с TSDoc, строкой в README и в CHANGELOG.
+- Новый публичный экспорт добавляется вместе с TSDoc, строкой в README и в CHANGELOG. До первого выпуска (в CHANGELOG только `[Unreleased]`) достаточно TSDoc и записи в `[Unreleased]`; README обязателен с вехи выпуска.
 - Выпуск — только тег `vX.Y.Z` и CI. Перед тегом нужен зелёный `make test-contract` против текущего `main` Platform (D10). Ручной `npm publish` запрещён, исключение — 1.0.0 (D1).
 - Для `.ts`-файлов используйте скилы `nestjs-specialist` и `nestjs-code` (для компонентов библиотеки — тип `generic`).

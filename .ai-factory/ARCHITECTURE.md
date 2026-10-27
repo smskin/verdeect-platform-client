@@ -97,7 +97,7 @@ verdeect-platform-client/
 ```
 
 - ✅ `src/nest/**` → `src/core/index.js` (и внутренние файлы ядра), `@nestjs/common`, `@nestjs/core`, `@verdeect/auth/nest`.
-- ✅ `src/testing/**` → ядро, `node:*`. Подделка подменяет транспорт через внутреннюю точку расширения клиента, а не через `fetch`-заглушку в коде сервиса.
+- ✅ `src/testing/**` → ядро, `node:*`. Подделка передаёт ядру `fetch` в памяти через публичную опцию `fetch` в `createPlatformAuthzClient`. Внутренней точки расширения у клиента нет, а сервису не нужно подменять `fetch` в своём коде.
 - ✅ Ядро → `zod`, `node:*` и другие файлы ядра.
 - ❌ Ядро → `@nestjs/*`, `rxjs`, `reflect-metadata`, `@verdeect/auth`, `src/nest/`, `src/testing/`. `import type` тоже запрещён: он ломает `.d.ts` у потребителя без Nest.
 - ❌ `src/nest/` ↔ `src/testing/` в любую сторону.
@@ -127,7 +127,7 @@ verdeect-platform-client/
   - `PermissionGuard` берёт `Principal` через `principalOf(request)`. Если его нет, вызывает `VerdeectAuthGuard` из DI (`@Optional()`);
   - guard сопоставляет `Principal` с `Subject`, вызывает `checkMany` и переводит `Decision` и ошибки в `HttpException` по таблице §5.4;
   - декоратор общается с guard'ом только через метаданные `Reflector`.
-- **Testing → ядро:** `createFakePlatform` строит настоящий `PlatformAuthzClient`, но с транспортом в памяти. Ответы этого транспорта собираются по правилам Platform из копии каталога. Поэтому кэш, `minEpoch` и `onPolicyChanged` в тестах потребителя работают так же, как в production.
+- **Testing → ядро:** `createFakePlatform` строит настоящий `PlatformAuthzClient` через `createPlatformAuthzClient`, передавая `fetch` в памяти (публичная опция) и заглушку `TokenProvider`. Ответы этого транспорта собираются по правилам Platform из копии каталога. Поэтому кэш, `minEpoch` и `onPolicyChanged` в тестах потребителя работают так же, как в production.
 - **Сборка и загрузка:**
   - `exports`: `"."` → `dist/core/index.*`, `"./nest"` → `dist/nest/index.*` (`types` + `default`);
   - `"./testing"` — `types` + `development`, без `default`.
