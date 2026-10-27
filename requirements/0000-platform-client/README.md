@@ -3,7 +3,7 @@
 Клиент авторизации Platform для сервисов Вердикта 2.0 (Orchestrator, Files, Media): решение по праву локально из кэша снимка `POST /v1/authz/permissions`, сброс по `platform.policy.changed`, свежесть через `minEpoch`, guard `@RequirePermission` для NestJS, подделка Platform для тестов потребителей.
 
 - **Режим:** INIT (новый репозиторий `verdeect2/verdeect-platform-client`, GitHub `smskin/verdeect-platform-client`)
-- **Ревизия:** r4 · 2026-10-28 · PRD v1.10
+- **Ревизия:** r5 · 2026-10-28 · PRD v1.11
 - **Источник истины:** `prd.md`; контракт Platform — `platform-lite/prd.md` v1.11 (§5.6, §6.1, §7.1–7.3, §9.2, §11, §15), код — `verdeect-platform` `main` `7adb423`
 - **Стек:** TypeScript (ESM, Node ≥ 22.12) · `zod` 4.6.7 · NestJS 12 и `@verdeect/auth` ^1.0.1 (необязательные peer) · Vitest · Testcontainers (только слой C, локально) · pnpm
 - **Специалисты:** `nestjs-specialist`, `nestjs-code`, `nestjs-generate-documentation`
@@ -50,3 +50,4 @@
 - r2 — 2026-10-27: вопрос из планирования E1 — метрика `request('token', …)` из `metrics` в опциях `clientCredentials` (§5.1, AC-18); PRD v1.8.
 - r3 — 2026-10-27: вопросы из планирования E2 — подделка testing: неизвестный участник → NOT_MEMBER, deny только с кодами общего отказа, формы FakeMember/FakeCompany (§5.5, AC-8a); PRD v1.9.
 - r4 — 2026-10-28: по реализации E2 — tenant подделки по умолчанию — slug из tenantId, явный неверный tenant — TypeError (§5.5, AC-8a); PRD v1.10.
+- r5 — 2026-10-28: по ревью E2 — slug из tenantId вне шаблона и повтор участника в members → TypeError (§5.5, AC-8a); AC-12 — dist/core/index.js; PRD v1.11.
