@@ -27,17 +27,18 @@ interface ExecFailure {
     readonly stderr?: string;
 }
 
-/** Запускает команду и возвращает код, stdout и stderr. */
+/** Запускает команду и возвращает код, stdout и stderr; env — переменные поверх process.env. */
 export async function runCommand(
     command: string,
     args: readonly string[],
     cwd: string,
+    env: Readonly<Record<string, string>> = {},
 ): Promise<CommandResult> {
     console.info(`[package-check] ${command} ${args.join(' ')} (cwd: ${cwd})`);
     try {
         const { stdout, stderr } = await execFileAsync(command, args, {
             cwd,
-            env: process.env,
+            env: { ...process.env, ...env },
             maxBuffer: 64 * 1024 * 1024,
             timeout: COMMAND_TIMEOUT_MS,
             killSignal: 'SIGKILL',

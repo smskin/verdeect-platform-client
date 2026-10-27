@@ -1,4 +1,4 @@
-// AC-12, UC-4 A3, D2, NFR-4 (prd.md §4): граф импортов dist/ и проекты-потребители упакованного архива (core, nest-no-auth, full).
+// AC-12, AC-16, UC-4 A3, D2, NFR-4 (prd.md §4): граф импортов dist/ и проекты-потребители упакованного архива (core, nest-no-auth, full).
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -144,10 +144,35 @@ describe('AC-12: проекты-потребители упакованного 
         expect(result.stdout.trim()).toBe('allow=true');
     });
 
+    it('AC-16: упакованный архив — импорт . и ./nest работает', async () => {
+        const result = await runInConsumer(project(full), 'node', ['exports-import.mjs']);
+        expect(result.code, describeResult(result)).toBe(0);
+        expect(result.stdout.trim()).toBe('ok');
+    });
+
     it('AC-12 / NFR-4: импорт ./nest без @verdeect/auth → ошибка разрешения модуля', async () => {
         const result = await runInConsumer(project(nestNoAuth), 'node', ['nest-import.mjs']);
         expect(result.code, describeResult(result)).toBe(0);
         expect(result.stdout).toMatch(/^ERR_MODULE_NOT_FOUND /);
         expect(result.stdout).toContain('@verdeect/auth');
+    });
+});
+
+describe('AC-12: пример из README', () => {
+    it('AC-12: пример «Тесты потребителя» в README совпадает с test/consumer/full/src/consumer.spec.ts', () => {
+        const readme = readFileSync(join(REPO_ROOT, 'README.md'), 'utf8');
+        const template = readFileSync(
+            join(REPO_ROOT, 'test/consumer/full/src/consumer.spec.ts'),
+            'utf8',
+        );
+        const block = readme.match(
+            /<!-- consumer-example:start -->\s*```ts\n([\s\S]*?)```\s*<!-- consumer-example:end -->/,
+        );
+
+        expect(block, 'нет блока consumer-example в README').not.toBeNull();
+        expect(
+            block?.[1]?.replace(/\n+$/, ''),
+            'обновите README из шаблона test/consumer/full/src/consumer.spec.ts',
+        ).toBe(template.replace(/\n+$/, ''));
     });
 });

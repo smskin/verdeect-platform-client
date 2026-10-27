@@ -8,7 +8,15 @@
   "overrides": [
     {
       "files": ["*.yaml", "*.yml", "*.json", "*.md"],
-      "options": { "tabWidth": 2 }
+      "options": {
+        "tabWidth": 2
+      }
+    },
+    {
+      "files": ["README.md"],
+      "options": {
+        "embeddedLanguageFormatting": "off"
+      }
     }
   ]
 }

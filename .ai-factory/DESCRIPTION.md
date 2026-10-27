@@ -44,12 +44,12 @@ npm-библиотека для сервисов этапа 1 Вердикта 2
   - Vitest — unit (`test/unit`) и perf (`test/perf`, запуск с `--expose-gc`, AC-17);
   - Nest-тесты guard и модуля: `@nestjs/testing` и Fastify (`@nestjs/platform-fastify`, `app.inject`). Метаданные декораторов для DI в Vitest пишет `unplugin-swc` с `@swc/core`: esbuild их не выдаёт;
   - проверки пакета — `vitest.package.config.ts` и проект-потребитель `test/consumer`;
-  - Testcontainers — только контрактный слой C (`test/contract`), локально против образа `verdeect-platform` (D10).
+  - Testcontainers 12.2.1 (`testcontainers`, `@testcontainers/postgresql`) и `amqplib` 2.2.0 — только контрактный слой C (`test/contract`), локально против образа `verdeect-platform` (D10); `yaml` 2.9.1 — разбор `ci.yml` в проверках выпуска.
 - **Пакетный менеджер:** pnpm. Версии в `devDependencies` точные, `minimumReleaseAge` задан.
 - **Проверки пакета:** `publint --strict`, `@arethetypeswrong/cli --profile esm-only`, состав `npm pack`.
 - **Линт и формат:** ESLint (flat config, typescript-eslint, TSDoc публичного API) и Prettier — по образцу `verdeect-auth`.
 - **CI и выпуск:** Makefile и GitHub Actions: lint → test (Node 22, 24) → build + `pack:check` → publish. Publish идёт по тегу `v<semver>` через npm Trusted Publishing (OIDC, provenance) и `scripts/publish.mjs`.
-- **БД, ORM, брокер, HTTP-сервер, Docker, GlitchTip:** нет.
+- **БД, ORM, брокер, HTTP-сервер, Docker-образ, GlitchTip:** нет. Docker на хосте нужен только `make test-contract`.
 
 ## Интеграции
 

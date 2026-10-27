@@ -22,7 +22,8 @@
     "test",
     "vitest.config.ts",
     "vitest.perf.config.ts",
-    "vitest.package.config.ts"
+    "vitest.package.config.ts",
+    "vitest.contract.config.ts"
   ],
   "exclude": ["test/consumer"]
 }
