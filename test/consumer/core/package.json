@@ -1,0 +1,8 @@
+{
+  "name": "verdeect-platform-client-consumer-core",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@verdeect/platform-client": "file:__TARBALL__"
+  }
+}

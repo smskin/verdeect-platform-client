@@ -4,7 +4,7 @@
 
 ## [Unreleased]
 
-Ядро клиента (этап E1). Раздел станет выпуском `1.0.0` на этапе E3 (prd.md §9).
+Ядро клиента (этап E1), адаптер NestJS и подделка Platform (этап E2). Раздел станет выпуском `1.0.0` на этапе E3 (prd.md §9).
 
 ### Added
 
@@ -33,4 +33,19 @@
 - Тип `PlatformClientMetrics` — внедряемый приёмник метрик кэша, запросов и событий.
 - Тип `MetricsEndpoint` — метка конечной точки в метриках.
 - Тип `MetricsRequestResult` — итог запроса в метриках.
+- `./nest`: `PlatformAuthzModule` — глобальный модуль `forRoot`/`forRootAsync`: клиент из настроек или готовый; без `logger` — обёртка над `Logger('PlatformAuthz')`.
+- `./nest`: `PLATFORM_AUTHZ_CLIENT` — токен DI клиента.
+- `./nest`: `RequirePermission` — декоратор прав маршрута (`SetMetadata` + `UseGuards(PermissionGuard)`); без прав или с пустой строкой — `TypeError` при объявлении.
+- `./nest`: `PermissionGuard` — guard маршрута: `Principal` (или вызов `VerdeectAuthGuard` из DI) → `Subject`, один `checkMany`, ответы 403/409/500/503 по prd.md §5.4, `request.platformDecision`.
+- `./nest`: тип `PlatformAuthzModuleOptions` — параметры `forRoot`.
+- `./nest`: тип `PlatformAuthzModuleAsyncOptions` — параметры `forRootAsync` (`imports`, `inject`, `useFactory`).
+- `./nest`: тип `PlatformDecision` — `{memberId, epoch}` в `request.platformDecision`.
+- `./testing`: `createFakePlatform` — подделка Platform: настоящий клиент ядра с транспортом в памяти, `grant`, `deny`, `setModule`, `setEpoch`, `policyChanged`, `calls`.
+- `./testing`: тип `FakePlatform` — подделка и её клиент.
+- `./testing`: тип `FakePlatformOptions` — начальные компании и участники; повтор `(tenantId, sub)` в `members` — `TypeError`.
+- `./testing`: тип `FakeMember` — участник компании подделки.
+- `./testing`: тип `FakeCompany` — компания подделки: `tenant`, `epoch`, состояния модулей. `tenant` по умолчанию — slug из `tenantId`; `tenant` вне шаблона slug Platform (явный или выведенный) — `TypeError` при создании подделки.
+- `./testing`: тип `FakeModuleState` — `enabled`, `PLAN_MODULE` или `MODULE_DISABLED`.
+- `./testing`: тип `FakeCall` — запрос клиента к подделке (`path`, `body`).
+- Подпуть `./testing` грузится только с условием экспорта `development` (Vitest ставит его сам); без него импорт падает с `ERR_PACKAGE_PATH_NOT_EXPORTED`.
 - TSDoc у каждого публичного экспорта.

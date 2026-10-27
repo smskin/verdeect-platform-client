@@ -42,6 +42,7 @@ npm-библиотека для сервисов этапа 1 Вердикта 2
 - **Интеграция с токенами:** `@verdeect/auth ^1.0.1` — необязательная peer-зависимость. Её нельзя переносить в `dependencies`: guard должен брать `VerdeectAuthGuard` и `principalOf` из той же копии, что и сервис.
 - **Тесты:**
   - Vitest — unit (`test/unit`) и perf (`test/perf`, запуск с `--expose-gc`, AC-17);
+  - Nest-тесты guard и модуля: `@nestjs/testing` и Fastify (`@nestjs/platform-fastify`, `app.inject`). Метаданные декораторов для DI в Vitest пишет `unplugin-swc` с `@swc/core`: esbuild их не выдаёт;
   - проверки пакета — `vitest.package.config.ts` и проект-потребитель `test/consumer`;
   - Testcontainers — только контрактный слой C (`test/contract`), локально против образа `verdeect-platform` (D10).
 - **Пакетный менеджер:** pnpm. Версии в `devDependencies` точные, `minimumReleaseAge` задан.

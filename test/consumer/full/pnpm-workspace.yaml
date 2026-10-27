@@ -1,0 +1,4 @@
+# Настройки pnpm шаблона: vitest → vite → esbuild и unplugin-swc → @swc/core требуют build-скрипт.
+allowBuilds:
+  '@swc/core': true
+  esbuild: true

@@ -15,6 +15,8 @@ export default [
             '.ai-factory/**',
             '.claude/**',
             '.serena/**',
+            // Шаблоны проектов-потребителей (AC-12): свои package.json и tsconfig, архив пакета в корне не разрешится.
+            'test/consumer/**',
         ],
     },
     js.configs.recommended,
@@ -73,8 +75,8 @@ export default [
         },
     },
     {
-        // Копия verdeect-platform decision-codes.ts (AC-11): не правится, поэтому TSDoc не требуется.
-        files: ['src/core/codes.ts'],
+        // Копии verdeect-platform (decision-codes.ts — AC-11, каталог — AC-8a): не правятся, поэтому TSDoc не требуется.
+        files: ['src/core/codes.ts', 'src/testing/catalog.ts'],
         rules: { 'jsdoc/require-jsdoc': 'off' },
     },
     {
@@ -118,6 +120,36 @@ export default [
                         {
                             group: ['../testing/*'],
                             message: 'nest не импортирует testing (ARCHITECTURE.md).',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    {
+        // Подделка Platform зависит только от ядра и node:* (ARCHITECTURE.md, D2).
+        files: ['src/testing/**/*.ts'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: ['@nestjs/*', 'rxjs', 'reflect-metadata'],
+                            message: 'testing не зависит от NestJS (D2).',
+                        },
+                        {
+                            group: ['@verdeect/auth', '@verdeect/auth/*'],
+                            message: 'testing зависит только от ядра (D2).',
+                        },
+                        {
+                            group: [
+                                '../nest/*',
+                                '@verdeect/platform-client',
+                                '@verdeect/platform-client/*',
+                            ],
+                            message:
+                                'testing не импортирует nest и пакет по имени (ARCHITECTURE.md).',
                         },
                     ],
                 },

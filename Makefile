@@ -53,11 +53,16 @@ test: ## Unit-тесты, затем perf AC-17 (--expose-gc); по имени u
 build: ## Сборка в dist/ (.js + .d.ts)
 	$(PNPM) build
 
-# Проверку состава архива и проект-потребитель test/consumer (AC-12) добавляет этап E2.
+# Проверки архива: publint, attw и проекты-потребители test/consumer (AC-12).
 .PHONY: pack-check
-pack-check: build ## publint и attw esm-only по упакованному архиву
+pack-check: build ## publint, attw esm-only и проекты-потребители упакованного архива (AC-12)
 	$(PNPM) exec publint --strict; \
-	$(PNPM) exec attw --pack . --profile esm-only
+	$(PNPM) exec attw --pack . --profile esm-only; \
+	$(PNPM) test:package
+
+.PHONY: test-package
+test-package: build ## Только проекты-потребители упакованного архива (AC-12)
+	$(PNPM) test:package
 
 .PHONY: ci
 ci: lint analyse test build pack-check ## Всё в порядке конвейера
