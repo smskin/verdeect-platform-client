@@ -21,7 +21,7 @@
 Ставьте точную версию (D1): обновление — осознанный шаг по CHANGELOG.
 
 ```bash
-pnpm add @verdeect/platform-client@1.0.0 --save-exact
+pnpm add @verdeect/platform-client@1.0.1 --save-exact
 ```
 
 Ядру peer-зависимости не нужны. Подпуть `nest` требует `@nestjs/common`, `@nestjs/core`, `reflect-metadata`, `rxjs` и `@verdeect/auth` — ту же копию, что у сервиса.
