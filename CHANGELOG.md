@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-28
+
+Первый выпуск через CI: npm Trusted Publishing (OIDC) с provenance. Код пакета не изменился.
+
+### Changed
+
+- Инструкция по установке в README и `docs/getting-started.md` — версия 1.0.1.
+
 ## [1.0.0] - 2026-10-28
 
 Первый выпуск: ядро (E1), адаптер NestJS и подделка Platform (E2), контрактные тесты и выпуск через CI (E3). Контракт Platform `v1` (PRD Platform v1.11); слой C пройден на `verdeect-platform` `7adb423`.
