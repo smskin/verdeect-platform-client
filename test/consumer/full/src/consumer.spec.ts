@@ -1,4 +1,4 @@
-// Пример теста сервиса-потребителя (prd.md §5.5, UC-4, AC-12): подделка Platform, токены @verdeect/auth/testing, Vitest без настройки условий.
+// Пример теста сервиса-потребителя (prd.md §5.5, UC-4, UC-5, AC-12, AC-21): подделка Platform, токены @verdeect/auth/testing, Vitest без настройки условий.
 import 'reflect-metadata';
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -68,5 +68,18 @@ describe('UC-4: контроллер сервиса с createFakePlatform', () =
         // Снимок уже в кэше клиента: событие сбрасывает его, как в production.
         fake.client.onPolicyChanged(fake.policyChanged('org_acme', ['acc_1']));
         expect(await listFiles()).toBe(403);
+    });
+
+    it('UC-5: setLimits → limits после clear()', async () => {
+        fake.setLimits('org_acme', { assistants: 3 });
+        // Лимиты эпоху не меняют: снимок в кэше обновится по TTL или после clear().
+        fake.client.clear();
+        const { limits } = await fake.client.permissions({
+            sub: 'acc_1',
+            tenant: 'acme',
+            tenantId: 'org_acme',
+            act: 'human',
+        });
+        expect(limits.assistants).toBe(3);
     });
 });

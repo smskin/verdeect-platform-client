@@ -41,6 +41,30 @@ export interface ModuleState {
     readonly code?: 'PLAN_MODULE' | 'MODULE_DISABLED';
 }
 
+/**
+ * Лимиты тарифа компании в ответе `permissions` (prd.md §3.2, UC-5). Ключи — копия схемы
+ * `Limits` Platform; `null` — без лимита; отсутствующий ключ — Platform его не прислал (это не
+ * `null`). Незнакомые ключи со значением `number | null` передаются как есть.
+ */
+export interface Limits {
+    /** Максимальный размер файла, МБ; обязателен. */
+    readonly fileSizeMb: number | null;
+    /** Число участников компании. */
+    readonly members?: number | null;
+    /** Объём хранилища, МБ. */
+    readonly storageMb?: number | null;
+    /** Запросов к моделям в месяц на компанию. */
+    readonly modelRequestsPerMonth?: number | null;
+    /** Запросов к моделям в месяц на участника. */
+    readonly modelRequestsPerMemberPerMonth?: number | null;
+    /** Одновременных чатов. */
+    readonly concurrentChats?: number | null;
+    /** Число ассистентов. */
+    readonly assistants?: number | null;
+    /** Ключ, которого нет в копии пакета: значение как прислал Platform. */
+    readonly [key: string]: number | null | undefined;
+}
+
 /** Снимок-разрешение: участник активен, права перечислены (prd.md §3.2). */
 export interface AllowedPermissions {
     /** Признак разрешения. */
@@ -57,11 +81,8 @@ export interface AllowedPermissions {
     readonly denied: Readonly<Record<string, PermissionDenyCode>>;
     /** Модули компании. */
     readonly modules: readonly ModuleState[];
-    /** Лимиты тарифа. */
-    readonly limits: {
-        /** Максимальный размер файла в МБ или `null` — без ограничения. */
-        readonly fileSizeMb: number | null;
-    };
+    /** Лимиты тарифа компании (с 1.1.0 — все ключи, что прислал Platform). */
+    readonly limits: Limits;
 }
 
 /** Снимок с общим отказом: решение одно для всех прав (prd.md §3.2). */
@@ -84,11 +105,8 @@ export interface DeniedPermissions {
     readonly denied: Readonly<Record<string, never>>;
     /** Всегда пусто. */
     readonly modules: readonly [];
-    /** Лимитов нет. */
-    readonly limits: {
-        /** Всегда `null`. */
-        readonly fileSizeMb: null;
-    };
+    /** Platform шлёт `null`; значения не проверяются сверх типа. */
+    readonly limits: Limits;
 }
 
 /** Ответ `POST /v1/authz/permissions` — снимок прав участника (prd.md §3.2). */

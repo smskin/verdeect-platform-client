@@ -6,7 +6,7 @@ npm-библиотека для сервисов этапа 1 Вердикта 2
 
 Это библиотека, а не сервис: в ней нет HTTP-сервера, БД, брокера, Docker-образа и GlitchTip. Транспорт событий остаётся у сервиса (D7). Проверку JWT делает `@verdeect/auth`, пакет получает от него готовый `Principal` (N1).
 
-Источник требований — `requirements/0000-platform-client/prd.md` (D1–D11, UC-1–UC-4, AC-1–AC-19, NFR-1–NFR-6). Контракт Platform повторён в PRD §3. Источник истины контракта — `platform-lite/prd.md` v1.11 и код `verdeect-platform` `main` `7adb423`+. Этапы: E1 «Ядро клиента», E2 «Nest и подделка», E3 «Контракт и выпуск» (`requirements/0000-platform-client/README.md`).
+Источник требований — `requirements/0000-platform-client/prd.md` (D1–D11, UC-1–UC-4, AC-1–AC-19, NFR-1–NFR-6). Контракт Platform повторён в PRD §3. Источник истины контракта — `platform-lite/prd.md` v1.11 и код `verdeect-platform` `main` `513886e`+. Этапы: E1 «Ядро клиента», E2 «Nest и подделка», E3 «Контракт и выпуск» (`requirements/0000-platform-client/README.md`).
 
 ## Основные возможности
 
@@ -62,6 +62,7 @@ npm-библиотека для сервисов этапа 1 Вердикта 2
 
 **Источники копий** (в шапке каждой копии — источник и коммит) — `/home/administrator/projects/verdeect2/verdeect-platform`:
 - `catalog/domain/decision-codes.ts` → `src/core/codes.ts`;
+- `apps/platform/src/modules/catalog/domain/limits.ts` @ `513886e` → `src/core/limits.ts` (схема `Limits`, prd.md §3.2). При сборке `dist/core/limits.d.ts` удаляется: копия экспортирует zod-схему, а AC-12 запрещает импорт `zod` в `.d.ts` пакета;
 - каталог прав и модулей → `src/testing/catalog.ts`;
 - `contracts/events/*.schema.json` → `test/fixtures/`.
 

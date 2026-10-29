@@ -14,6 +14,7 @@ export type {
     DecisionCode,
     DeniedPermissions,
     GeneralDenyCode,
+    Limits,
     MetricsEndpoint,
     MetricsRequestResult,
     ModuleState,

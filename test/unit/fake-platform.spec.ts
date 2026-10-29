@@ -367,3 +367,75 @@ describe('UC-3: событие и свежесть через подделку',
         expect(fake.calls()).toHaveLength(1);
     });
 });
+
+describe('AC-21: лимиты подделки (§5.5, UC-5 A3)', () => {
+    const SEVEN_NULL = {
+        members: null,
+        storageMb: null,
+        fileSizeMb: null,
+        modelRequestsPerMonth: null,
+        modelRequestsPerMemberPerMonth: null,
+        concurrentChats: null,
+        assistants: null,
+    };
+
+    it('AC-21: по умолчанию — семь ключей null в разрешении и в общем отказе', async () => {
+        const fake = createFakePlatform({ members: [{ tenantId: T, sub: S }] });
+        expect((await fake.client.permissions(human)).limits).toStrictEqual(SEVEN_NULL);
+        fake.deny(T, S, 'COMPANY_SUSPENDED');
+        fake.client.clear();
+        const denied = await fake.client.permissions(human);
+        expect(denied.allow).toBe(false);
+        expect(denied.limits).toStrictEqual(SEVEN_NULL);
+    });
+
+    it('AC-21: companies[].limits — переданный ключ, остальные null', async () => {
+        const fake = createFakePlatform({
+            companies: [{ tenantId: T, limits: { assistants: 3 } }],
+            members: [{ tenantId: T, sub: S }],
+        });
+        expect((await fake.client.permissions(human)).limits).toStrictEqual({
+            ...SEVEN_NULL,
+            assistants: 3,
+        });
+    });
+
+    it('AC-21: setLimits сливается; видно после client.clear(); эпоха не меняется', async () => {
+        const fake = createFakePlatform({
+            companies: [{ tenantId: T, epoch: 4, limits: { assistants: 3 } }],
+            members: [{ tenantId: T, sub: S }],
+        });
+        await fake.client.permissions(human);
+        fake.setLimits(T, { concurrentChats: 2 });
+        expect((await fake.client.permissions(human)).limits.concurrentChats).toBeNull();
+        fake.client.clear();
+        const snapshot = await fake.client.permissions(human);
+        expect(snapshot.limits).toStrictEqual({ ...SEVEN_NULL, assistants: 3, concurrentChats: 2 });
+        expect(snapshot.epoch).toBe(4);
+        fake.setLimits(T, { assistants: null });
+        fake.client.clear();
+        expect((await fake.client.permissions(human)).limits.assistants).toBeNull();
+    });
+
+    it('AC-21: setLimits(u, {assistants: 3}) для незаведённой компании — epoch 1, assistants 3, остальные null', async () => {
+        const fake = createFakePlatform();
+        fake.setLimits('org-new', { assistants: 3 });
+        fake.grant('org-new', S, []);
+        const snapshot = await fake.client.permissions({ ...human, tenantId: 'org-new' });
+        expect(snapshot.epoch).toBe(1);
+        expect(snapshot.limits).toStrictEqual({ ...SEVEN_NULL, assistants: 3 });
+    });
+
+    it.each([
+        ['{foo: 1}', { foo: 1 }],
+        ['{assistants: 0}', { assistants: 0 }],
+        ["{assistants: 'x'}", { assistants: 'x' }],
+        ['{assistants: 1.5}', { assistants: 1.5 }],
+    ])('AC-21: setLimits/companies.limits — %s → TypeError', (_name, limits) => {
+        const fake = createFakePlatform();
+        expect(() => fake.setLimits(T, limits as never)).toThrow(TypeError);
+        expect(() =>
+            createFakePlatform({ companies: [{ tenantId: T, limits: limits as never }] }),
+        ).toThrow(TypeError);
+    });
+});

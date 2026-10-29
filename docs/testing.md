@@ -25,22 +25,24 @@ const fake = createFakePlatform({
 });
 ```
 
-| Метод                                  | Что делает                                                                                                                         |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `client`                               | клиент ядра; передаётся в `PlatformAuthzModule.forRoot({client})`                                                                  |
-| `grant(tenantId, sub, permissions)`    | заменяет права участника и снимает общий отказ; `[]` — участник без прав (`FORBIDDEN`)                                             |
-| `deny(tenantId, sub, code)`            | общий отказ; только `GeneralDenyCode` (`NOT_MEMBER`, `COMPANY_SUSPENDED`, `ACCOUNT_DISABLED`, `SEATS_EXCEEDED`, `CONTEXT_REVOKED`) |
-| `setModule(tenantId, moduleId, state)` | `'enabled'`, `'PLAN_MODULE'` или `'MODULE_DISABLED'`                                                                               |
-| `setEpoch(tenantId, epoch)`            | эпоха политики компании, целое ≥ 1                                                                                                 |
-| `policyChanged(tenantId, subs?)`       | поднимает эпоху на 1 и возвращает конверт для `client.onPolicyChanged`                                                             |
-| `calls()`                              | журнал запросов к подделке `{path, body}`                                                                                          |
+| Метод                                  | Что делает                                                                                                                                           |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client`                               | клиент ядра; передаётся в `PlatformAuthzModule.forRoot({client})`                                                                                    |
+| `grant(tenantId, sub, permissions)`    | заменяет права участника и снимает общий отказ; `[]` — участник без прав (`FORBIDDEN`)                                                               |
+| `deny(tenantId, sub, code)`            | общий отказ; только `GeneralDenyCode` (`NOT_MEMBER`, `COMPANY_SUSPENDED`, `ACCOUNT_DISABLED`, `SEATS_EXCEEDED`, `CONTEXT_REVOKED`)                   |
+| `setModule(tenantId, moduleId, state)` | `'enabled'`, `'PLAN_MODULE'` или `'MODULE_DISABLED'`                                                                                                 |
+| `setEpoch(tenantId, epoch)`            | эпоха политики компании, целое ≥ 1                                                                                                                   |
+| `setLimits(tenantId, limits)`          | сливается с текущими лимитами; `null` — без лимита; ключ вне копии или не целое ≥ 1 → `TypeError`; эпоха не меняется — видно после `clear()` или TTL |
+| `policyChanged(tenantId, subs?)`       | поднимает эпоху на 1 и возвращает конверт для `client.onPolicyChanged`                                                                               |
+| `calls()`                              | журнал запросов к подделке `{path, body}`                                                                                                            |
 
 `FORBIDDEN` — это `grant` без права, `PLAN_MODULE` и `MODULE_DISABLED` — `setModule`; в `deny` они → `TypeError`.
 
 ### Значения по умолчанию
 
 - `FakeMember {tenantId, sub, permissions?, memberId?}` — `memberId` выводится из `sub`.
-- `FakeCompany {tenantId, tenant?, epoch?, modules?}` — `epoch` = 1, все модули `enabled`. Компания, упомянутая в `members`, `grant`, `deny`, `setModule` или `setEpoch`, заводится сама.
+- `FakeCompany {tenantId, tenant?, epoch?, modules?, limits?}` — `epoch` = 1, все модули `enabled`, лимиты — семь ключей копии `Limits` со значением `null`; `limits` меняет только переданные ключи. Компания, упомянутая в `members`, `grant`, `deny`, `setModule`, `setEpoch` или `setLimits`, заводится сама.
+- Ответ разрешения и общего отказа несёт лимиты компании; у неизвестной компании — семь `null`.
 - `tenant` по умолчанию — slug из `tenantId`: строчные буквы, символ вне `[a-z0-9-]` → `-`, не длиннее 49 символов (`org_acme` → `org-acme`). Так конверт `policyChanged` проходит схему Platform.
 - Участник без `members`, `grant` и `deny` → общий отказ `NOT_MEMBER`.
 
@@ -49,7 +51,8 @@ const fake = createFakePlatform({
 - явный `tenant` не по шаблону `^_?[a-z0-9][a-z0-9-]{0,48}$` (например, `Bad_Slug`);
 - slug из `tenantId` не по шаблону (`''`, `_acme`) — задайте `tenant` явно;
 - повтор `(tenantId, sub)` в `members`;
-- `deny` с кодом, который не является общим отказом.
+- `deny` с кодом, который не является общим отказом;
+- `setLimits` или `companies[].limits` с ключом вне копии `Limits` или со значением не `null` и не целым ≥ 1 (`{foo: 1}`, `{assistants: 0}`, `{assistants: 1.5}`).
 
 ### Неизвестное право
 

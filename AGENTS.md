@@ -18,7 +18,7 @@
 
 ## Структура проекта
 
-Этапы E1 (ядро), E2 (Nest и подделка) и E3 (контракт и выпуск) готовы.
+Этапы E1 (ядро), E2 (Nest и подделка), E3 (контракт и выпуск) и E4 (лимиты тарифа, 1.1.0; слой C — Platform `513886e`) готовы.
 
 ```
 verdeect-platform-client/
@@ -27,6 +27,7 @@ verdeect-platform-client/
 │   │   ├── index.ts              # публичный контракт ядра (явный список реэкспортов)
 │   │   ├── types.ts              # публичные интерфейсы TS (§3.2, §5.1)
 │   │   ├── codes.ts              # копия decision-codes.ts Platform (источник + коммит)
+│   │   ├── limits.ts             # копия схемы Limits Platform (источник + коммит); .d.ts удаляется при сборке (AC-12)
 │   │   ├── errors.ts             # PlatformUnavailableError, PlatformContractError
 │   │   ├── schemas.ts            # zod-схемы (внутренние) и функции parse*
 │   │   ├── options.ts            # проверка настроек → TypeError, значения по умолчанию
@@ -48,6 +49,8 @@ verdeect-platform-client/
 │       └── catalog.ts            # копия каталога прав и модулей Platform (источник + коммит)
 ├── test/
 │   ├── unit/                     # слой U: *.spec.ts ядра, nest (@nestjs/testing + Fastify) и testing
+│   │   ├── limits.spec.ts           # AC-20: шапка, ключи и совпадение копии limits.ts с источником
+│   │   ├── client-limits.spec.ts    # AC-20, UC-5 A1/A2: limits через клиент, кэш, отброшенные ключи
 │   │   ├── identity-events.spec.ts  # §7 п. 7: образцы конвертов identity.* слоя C по копии схемы
 │   │   ├── contract-broker.spec.ts  # AC-15 (C): разбор platform.policy.changed без Docker
 │   │   └── support/              # подделанные fetch, часы, logger, metrics, TokenProvider; nest-app.ts; setup.ts (AC-19)
@@ -57,6 +60,7 @@ verdeect-platform-client/
 │   │   ├── ac-13-catalog.spec.ts      # AC-13, AC-15 (C), UC-1: каталог, raw.check, COMPANY_SUSPENDED
 │   │   ├── ac-14-revocation.spec.ts   # AC-14, AC-15 (C), UC-2: member:grant/revoke, CONTEXT_REVOKED, minEpoch
 │   │   ├── ac-15-scope.spec.ts        # AC-15 (C): SCOPE_REQUIRED без platform:authz
+│   │   ├── ac-22-limits.spec.ts       # AC-22, UC-5: limits по тарифу default; PLATFORM_LIMITS=legacy — без B.1
 │   │   └── support/
 │   │       ├── global-setup.ts        # globalSetup: образ → стенд → provide; отчёт «[contract] Platform: <commit>»
 │   │       ├── platform-image.ts      # docker build ../verdeect-platform или PLATFORM_IMAGE; коммит, dirty
@@ -97,7 +101,7 @@ make lint            # ESLint (TSDoc, границы ядра) + Prettier check
 make analyse         # tsc --noEmit
 make test            # слой U (test/unit), затем perf AC-17; make test FILTER='AC-6'
 make build           # dist/ (.js + .d.ts)
-make test-contract   # слой C в Testcontainers (локально, не в ci); PLATFORM_IMAGE=<ref> PLATFORM_COMMIT=<sha>
+make test-contract   # слой C в Testcontainers (локально, не в ci); PLATFORM_IMAGE=<ref> PLATFORM_COMMIT=<sha>; PLATFORM_DIR=<worktree>; PLATFORM_LIMITS=legacy — Platform без B.1; PLATFORM_CLI_TIMEOUT_MS=<мс> — предел вызова CLI (120000)
 make pack-check      # pnpm pack:check: publint --strict + attw esm-only + test:package (AC-12, AC-16)
 make test-package    # только проекты-потребители упакованного архива (после build)
 make ci              # lint analyse test build pack-check
@@ -147,7 +151,7 @@ make clean           # dist, coverage, *.tgz
 
 - `/home/administrator/projects/verdeect2/verdeect-auth` — образец пакета: `package.json`, tsconfig, eslint, prettier, Vitest, Makefile, `ci.yml`, `scripts/publish.mjs`, `docs/`, подпуть `testing`.
 - `/home/administrator/projects/verdeect2/verdeect-platform` — источник копий:
-  - `apps/platform/src/modules/catalog/domain/` — коды и каталог;
+  - `apps/platform/src/modules/catalog/domain/` — коды, каталог и `limits.ts`;
   - `apps/platform/contracts/events/*.schema.json` — схемы событий;
   - `apps/platform/src/modules/authz/http/` — ответы `authz`;
   - образ для слоя C.

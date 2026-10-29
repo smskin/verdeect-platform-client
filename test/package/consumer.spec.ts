@@ -89,8 +89,10 @@ describe('AC-12: состав dist/', () => {
 
     it('AC-12: в .d.ts пакета нет импортов из zod', () => {
         for (const file of filesUnder(DIST, '.d.ts')) {
+            // Сообщение — путь файла: так виден, например, вернувшийся dist/core/limits.d.ts (копия с zod-схемой).
             expect(
                 specifiers(file).filter((s) => s === 'zod' || s.startsWith('zod/')),
+                relative(DIST, file),
             ).toStrictEqual([]);
         }
     });

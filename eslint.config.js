@@ -75,8 +75,8 @@ export default [
         },
     },
     {
-        // Копии verdeect-platform (decision-codes.ts — AC-11, каталог — AC-8a): не правятся, поэтому TSDoc не требуется.
-        files: ['src/core/codes.ts', 'src/testing/catalog.ts'],
+        // Копии verdeect-platform (decision-codes.ts — AC-11, каталог — AC-8a, limits.ts — AC-20): не правятся, поэтому TSDoc не требуется.
+        files: ['src/core/codes.ts', 'src/core/limits.ts', 'src/testing/catalog.ts'],
         rules: { 'jsdoc/require-jsdoc': 'off' },
     },
     {

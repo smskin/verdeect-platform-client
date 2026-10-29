@@ -41,6 +41,7 @@ verdeect-platform-client/
 │   │   │                              #   PlatformAuthzClientOptions, PlatformClientMetrics, TokenProvider
 │   │   ├── schemas.ts                 #   zod-схемы (не экспортируются) и функции parse*: в .d.ts нет zod (AC-12)
 │   │   ├── codes.ts                   #   копия decision-codes.ts Platform: коды и тексты (источник + коммит)
+│   │   ├── limits.ts                  #   копия схемы Limits Platform (источник + коммит); .d.ts удаляется при сборке (AC-12)
 │   │   ├── errors.ts                  #   PlatformUnavailableError, PlatformContractError
 │   │   ├── options.ts                 #   проверка настроек → TypeError с именами параметров
 │   │   ├── transport.ts               #   HTTP к Platform: fetch, таймаут, traceparent, 401 → refresh, классификация ошибок
@@ -140,7 +141,9 @@ verdeect-platform-client/
 4. **Сбой инфраструктуры ≠ ошибка контракта ≠ отказ.** `PlatformUnavailableError` — сеть, таймаут, 5xx, повторный 401. `PlatformContractError` — 4xx, ответ не по схеме, локальные `UNKNOWN_PERMISSION`, `PEP_REQUIRED`, `VALIDATION_FAILED`. Отказ — `Decision`. Ошибки не кэшируются.
 5. **Ошибка конфигурации — громко и рано.** Неверные настройки дают `TypeError` при создании клиента, `@RequirePermission()` без прав — `TypeError` при объявлении. Значения параметров в сообщение не попадают.
 6. **Детерминизм для тестов.** `fetch`, `clock`, `traceparent`, `logger` и `metrics` внедряются. В ядре нет глобального состояния, таймеров и `Date.now()` напрямую.
-7. **Копии — только синхронизацией.** `codes.ts`, `catalog.ts` и `test/fixtures/*.schema.json` повторяют `verdeect-platform`, в шапке указаны источник и коммит. При расхождении правится источник, затем PRD, затем копия.
+7. **Копии — только синхронизацией.** `codes.ts`, `limits.ts` (`apps/platform/src/modules/catalog/domain/limits.ts` @ `513886e`), `catalog.ts` и `test/fixtures/*.schema.json` повторяют `verdeect-platform`, в шапке указаны источник и коммит. При расхождении правится источник, затем PRD, затем копия.
+
+   **`dist/core/limits.d.ts` удаляется при сборке.** Копия `limits.ts` экспортирует zod-схему `LimitsSchema`, поэтому её `.d.ts` импортирует `zod`. AC-12 и NFR-4 запрещают импорт `zod` в любом `.d.ts` пакета. Копию править нельзя, поэтому скрипт `build` после `tsc` удаляет `dist/core/limits.d.ts`. Ни один другой `.d.ts` на него не ссылается: ядро импортирует копию только как тип внутри внутренней схемы, а публичный тип `Limits` — интерфейс в `types.ts`. В `exports` файл не открыт. Если копия попадёт в публичный тип, сборка даст `.d.ts` со ссылкой на отсутствующий файл, и это поймает `attw` или `test:package`.
 8. **Без секретов и окружений.** `baseUrl`, `tokenUrl`, `clientId` и `clientSecret` передаёт сервис. Токен, `Authorization` и секрет не попадают ни в лог, ни в текст ошибки (AC-19).
 9. **Контракт стабилен.** Контракт Platform `v1` соответствует пакету `1.x`. Сигнатуры экспортов, коды, тексты и статусы guard меняются только мажорной версией (NFR-5).
 10. **TSDoc у каждого публичного экспорта** — это документация для IDE потребителя через `.d.ts`.
@@ -270,7 +273,7 @@ import { z } from 'zod';                                   // ✅
 - ❌ `Date.now()` или глобальный `fetch` в ядре в обход внедрённых `clock` и `fetch`. Таймеры — только таймаут HTTP-запроса (`setTimeout` + `AbortController`, `clearTimeout` в `finally`).
 - ❌ `sub`, `tenantId` или текст ошибки в метках метрик. Токен, `Authorization` или `clientSecret` в логе.
 - ❌ Регистрация `PermissionGuard` через `APP_GUARD` (D11). Решение по праву на маршруте без `@RequirePermission`.
-- ❌ Ручная правка копий `codes.ts` и `catalog.ts`, перевод или перефразирование текстов отказов.
+- ❌ Ручная правка копий `codes.ts`, `limits.ts` и `catalog.ts`, перевод или перефразирование текстов отказов.
 - ❌ Тип `PermissionKey` или перечень прав в публичном API (N6).
 - ❌ Публичный экспорт без TSDoc, без записи в README и CHANGELOG.
 - ❌ Слои сервиса из `nestjs-specialist` (`modules/`, `use-cases/`, `repositories/`, `shared/`), `@nestjs/config`, `nestjs-pino`, `prom-client`, Docker в пакете.

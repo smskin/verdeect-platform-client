@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createPlatformAuthzClient } from '../../src/core/client.js';
 import type { PermissionDenyCode, Subject, TokenProvider } from '../../src/core/types.js';
 
-// 20 прав Platform @ 7adb423 + 4 для полного объёма (24).
+// 20 прав Platform @ 513886e + 4 для полного объёма (24).
 const PERMISSIONS = [
     'chat.use',
     'chat.web',
@@ -61,7 +61,16 @@ function snapshotFor(sub: string): object {
         modules: MODULES.map((id, i) =>
             i % 3 === 2 ? { id, enabled: false, code: 'MODULE_DISABLED' } : { id, enabled: true },
         ),
-        limits: { fileSizeMb: 50 },
+        // После E4: limits — семь ключей копии (форма 1.1.0).
+        limits: {
+            members: 25,
+            storageMb: 10240,
+            fileSizeMb: 50,
+            modelRequestsPerMonth: 100000,
+            modelRequestsPerMemberPerMonth: null,
+            concurrentChats: 5,
+            assistants: null,
+        },
     };
 }
 
@@ -74,7 +83,7 @@ const perfFetch = (async (_input: string | URL | Request, init?: RequestInit) =>
 const tokenProvider: TokenProvider = { getToken: async () => 'perf-token' };
 const BASE_URL = 'http://platform:3000';
 
-describe('AC-17: производительность check (NFR-1)', () => {
+describe('AC-17: производительность check (NFR-1) (после E4: limits — семь ключей)', () => {
     it('AC-17: check из кэша — p99 < 0,2 мс (10 000 прогрев + 100 000 замеров по 10 правам)', async () => {
         const client = createPlatformAuthzClient({
             baseUrl: BASE_URL,

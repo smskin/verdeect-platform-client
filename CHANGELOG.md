@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-29
+
+Лимиты тарифа в ответе `permissions` (UC-5); контракт Platform `v1`, PRD Platform v1.14; слой C пройден на `verdeect-platform` `513886e`. Против Platform до `513886e` в `limits` только `fileSizeMb`, как в 1.0.x.
+
+### Added
+
+- Тип `Limits` — лимиты тарифа компании в ответе `permissions` (с 1.1.0): копия ключей схемы Platform, незнакомые числовые ключи передаются как есть.
+- `FakePlatform.setLimits` и `FakeCompany.limits` — лимиты компании подделки; по умолчанию семь ключей `null`.
+
+### Changed
+
+- `DeniedPermissions.limits` — тип `Limits` (раньше `{ fileSizeMb: null }`).
+
 ## [1.0.1] - 2026-10-28
 
 Первый выпуск через CI: npm Trusted Publishing (OIDC) с provenance. Код пакета не изменился.

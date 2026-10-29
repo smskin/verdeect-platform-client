@@ -1,6 +1,6 @@
 {
   "name": "@verdeect/platform-client",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Клиент авторизации Platform для сервисов Вердикта 2.0: решение по праву из кэша снимка, модуль NestJS, подделка Platform для тестов",
   "keywords": [
     "verdeect",
@@ -44,7 +44,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
+    "build": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json && node -e \"fs.rmSync('dist/core/limits.d.ts')\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",

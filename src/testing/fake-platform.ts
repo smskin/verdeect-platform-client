@@ -1,9 +1,11 @@
 // Подделка Platform для тестов потребителя (prd.md §5.5, AC-8a, UC-3, UC-4): настоящий клиент ядра с транспортом в памяти.
 import { decisionMessage } from '../core/codes.js';
+import { LimitsSchema } from '../core/limits.js';
 import {
     createPlatformAuthzClient,
     PlatformContractError,
     type GeneralDenyCode,
+    type Limits,
     type ModuleState,
     type PermissionDenyCode,
     type PermissionsResponse,
@@ -49,6 +51,11 @@ export interface FakeCompany {
     readonly epoch?: number;
     /** Состояния модулей по идентификатору; по умолчанию все `enabled`. */
     readonly modules?: Readonly<Record<string, FakeModuleState>>;
+    /**
+     * Лимиты тарифа поверх умолчаний (семь ключей копии со значением `null`). Ключ вне копии или
+     * значение не `null` и не целое ≥ 1 — `TypeError` при создании подделки.
+     */
+    readonly limits?: Partial<Limits>;
 }
 
 /** Начальное состояние подделки. */
@@ -84,6 +91,12 @@ export interface FakePlatform {
     /** Ставит эпоху политики компании, целое ≥ 1. */
     setEpoch(tenantId: string, epoch: number): void;
     /**
+     * Сливает лимиты тарифа с текущими (заводит компанию при необходимости); `null` — без лимита.
+     * Ключ вне копии или значение не `null` и не целое ≥ 1 — `TypeError`. Эпоху не меняет: смена
+     * видна после TTL снимка или `client.clear()`.
+     */
+    setLimits(tenantId: string, limits: Partial<Limits>): void;
+    /**
      * Поднимает эпоху компании на 1 и возвращает конверт `platform.policy.changed` по схеме Platform
      * для `client.onPolicyChanged`. С непустым `subs` — `reason: member_roles`, иначе `modules`.
      */
@@ -96,6 +109,7 @@ interface CompanyState {
     tenant: string;
     epoch: number;
     readonly modules: Map<ModuleId, FakeModuleState>;
+    readonly limits: Record<string, number | null>;
 }
 
 interface MemberState {
@@ -121,6 +135,13 @@ const MODULE_STATES: readonly string[] = [
 // Шаблон slug Platform (platform-events.schema.json $defs.slug); §5.5 v1.10.
 const SLUG = /^_?[a-z0-9][a-z0-9-]{0,48}$/;
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+// Ключи копии схемы Limits Platform (§5.5): по умолчанию у компании все null.
+const LIMIT_KEYS = Object.keys(LimitsSchema.shape);
+const PARTIAL_LIMITS = LimitsSchema.partial();
+
+function defaultLimits(): Record<string, number | null> {
+    return Object.fromEntries(LIMIT_KEYS.map((key) => [key, null]));
+}
 
 // tenant по умолчанию (§5.5 v1.10): конверт policyChanged проходит схему Platform.
 function slugOf(tenantId: string): string {
@@ -159,6 +180,23 @@ function assertEpoch(method: string, epoch: unknown): asserts epoch is number {
     if (typeof epoch !== 'number' || !Number.isInteger(epoch) || epoch < 1) {
         throw new TypeError(`platform-client/testing: ${method}: epoch must be an integer >= 1`);
     }
+}
+
+// §5.5: ключ вне копии или значение не null и не целое ≥ 1 → TypeError с именами ключей.
+function parseLimits(method: string, limits: unknown): Record<string, number | null> {
+    const result = PARTIAL_LIMITS.safeParse(limits);
+    if (result.success) {
+        return Object.fromEntries(
+            Object.entries(result.data).filter(([, value]) => value !== undefined),
+        ) as Record<string, number | null>;
+    }
+    const keys = result.error.issues.flatMap((issue) =>
+        issue.code === 'unrecognized_keys' ? issue.keys : [issue.path.join('.') || '(root)'],
+    );
+    throw new TypeError(
+        `platform-client/testing: ${method}: limits must have keys of Limits with null or ` +
+            `an integer >= 1; invalid: ${keys.join(', ')}`,
+    );
 }
 
 function assertModuleState(method: string, state: unknown): asserts state is FakeModuleState {
@@ -247,7 +285,12 @@ export function createFakePlatform(options: FakePlatformOptions = {}): FakePlatf
     function company(tenantId: string, tenant?: string): CompanyState {
         let state = companies.get(tenantId);
         if (state === undefined) {
-            state = { tenant: tenant ?? defaultTenant(tenantId), epoch: 1, modules: new Map() };
+            state = {
+                tenant: tenant ?? defaultTenant(tenantId),
+                epoch: 1,
+                modules: new Map(),
+                limits: defaultLimits(),
+            };
             companies.set(tenantId, state);
         }
         return state;
@@ -291,6 +334,9 @@ export function createFakePlatform(options: FakePlatformOptions = {}): FakePlatf
         for (const [moduleId, moduleState] of Object.entries(c.modules ?? {})) {
             setModule(c.tenantId, moduleId, moduleState);
         }
+        if (c.limits !== undefined) {
+            Object.assign(state.limits, parseLimits('companies', c.limits));
+        }
     }
     const declared = new Set<string>();
     for (const m of options.members ?? []) {
@@ -311,12 +357,14 @@ export function createFakePlatform(options: FakePlatformOptions = {}): FakePlatf
     function snapshotFor(tenantId: string, sub: string): PermissionsResponse {
         const companyState = companies.get(tenantId);
         const memberState = members.get(memberKey(tenantId, sub));
+        // §5.5: разрешение и общий отказ несут лимиты компании; без компании — семь null.
+        const limits = { fileSizeMb: null, ...(companyState?.limits ?? defaultLimits()) };
         const empty = {
             roles: [],
             permissions: [],
             denied: {},
             modules: [],
-            limits: { fileSizeMb: null },
+            limits,
         } as const;
         if (companyState === undefined || memberState === undefined) {
             const code = 'NOT_MEMBER';
@@ -369,7 +417,7 @@ export function createFakePlatform(options: FakePlatformOptions = {}): FakePlatf
             permissions,
             denied,
             modules,
-            limits: { fileSizeMb: null },
+            limits,
         };
     }
 
@@ -434,6 +482,10 @@ export function createFakePlatform(options: FakePlatformOptions = {}): FakePlatf
         setEpoch(tenantId, epoch) {
             assertEpoch('setEpoch', epoch);
             company(tenantId).epoch = epoch;
+        },
+        setLimits(tenantId, limits) {
+            const parsed = parseLimits('setLimits', limits);
+            Object.assign(company(tenantId).limits, parsed);
         },
         policyChanged(tenantId, subs) {
             const state = company(tenantId);

@@ -1,5 +1,6 @@
 // Внутренние zod-схемы (prd.md §3.2, §5.1, §5.3); наружу — только функции parse* без типов zod (NFR-4, AC-12).
 import { z } from 'zod';
+import type { LimitsSchema } from './limits.js';
 import type { PermissionsResponse } from './types.js';
 
 const epoch = z.number().int().min(1);
@@ -11,6 +12,20 @@ const generalDenyCode = z.enum([
     'SEATS_EXCEEDED',
     'CONTEXT_REVOKED',
 ]);
+
+// limits (§3.2, AC-20): ключи — ровно ключи копии Limits Platform (проверка satisfies); известный
+// ключ — number | null, иначе ответ не по схеме; незнакомые ключи разбирает parsePermissionsResponse.
+const limitValue = z.number().nullable();
+const limitsShape = {
+    members: limitValue.optional(),
+    storageMb: limitValue.optional(),
+    fileSizeMb: limitValue,
+    modelRequestsPerMonth: limitValue.optional(),
+    modelRequestsPerMemberPerMonth: limitValue.optional(),
+    concurrentChats: limitValue.optional(),
+    assistants: limitValue.optional(),
+} satisfies Record<keyof z.infer<typeof LimitsSchema>, z.ZodType>;
+const limitsSchema = z.object(limitsShape).catchall(z.unknown());
 
 const allowedSchema = z.object({
     allow: z.literal(true),
@@ -26,7 +41,7 @@ const allowedSchema = z.object({
             code: z.enum(['PLAN_MODULE', 'MODULE_DISABLED']).optional(),
         }),
     ),
-    limits: z.object({ fileSizeMb: z.number().nullable() }),
+    limits: limitsSchema,
 });
 
 const deniedSchema = z.object({
@@ -39,13 +54,10 @@ const deniedSchema = z.object({
     permissions: z.tuple([]),
     denied: z.strictObject({}),
     modules: z.tuple([]),
-    limits: z.object({ fileSizeMb: z.null() }),
+    limits: limitsSchema,
 });
 
-const permissionsResponseSchema = z.discriminatedUnion('allow', [
-    allowedSchema,
-    deniedSchema,
-]) satisfies z.ZodType<PermissionsResponse>;
+const permissionsResponseSchema = z.discriminatedUnion('allow', [allowedSchema, deniedSchema]);
 
 // Мягкая схема (§5.3): незнакомые поля и любой reason принимаются; subject, actor, tenant не проверяются.
 const policyChangedSchema = z.looseObject({
@@ -70,6 +82,10 @@ const platformErrorSchema = z.looseObject({
     }),
 });
 
+function isLimitValue(value: unknown): value is number | null {
+    return value === null || (typeof value === 'number' && Number.isFinite(value));
+}
+
 /** Конверт platform.policy.changed в объёме, нужном для сброса (§5.3). */
 export interface PolicyChangedEvent {
     /** Идентификатор события. */
@@ -82,10 +98,37 @@ export interface PolicyChangedEvent {
     readonly subs: readonly string[] | undefined;
 }
 
-/** Ответ permissions по схеме §3.2 или `undefined`; лишние поля отбрасываются. */
-export function parsePermissionsResponse(value: unknown): PermissionsResponse | undefined {
+/**
+ * Ответ permissions по схеме §3.2 или `undefined`. Лишние поля верхнего уровня отбрасываются.
+ * В `limits` незнакомые ключи со значением `number | null` сохраняются, прочие отбрасываются.
+ *
+ * @param onDroppedLimits - получает имена отброшенных ключей `limits` (без значений), если они есть.
+ */
+export function parsePermissionsResponse(
+    value: unknown,
+    onDroppedLimits?: (keys: readonly string[]) => void,
+): PermissionsResponse | undefined {
     const result = permissionsResponseSchema.safeParse(value);
-    return result.success ? result.data : undefined;
+    if (!result.success) {
+        return undefined;
+    }
+    const limits: Record<string, number | null> = {};
+    const dropped: string[] = [];
+    for (const [key, limit] of Object.entries(result.data.limits)) {
+        if (isLimitValue(limit)) {
+            limits[key] = limit;
+            continue;
+        }
+        dropped.push(key);
+    }
+    if (dropped.length > 0) {
+        onDroppedLimits?.(dropped);
+    }
+    const response = {
+        ...result.data,
+        limits: { ...limits, fileSizeMb: result.data.limits.fileSizeMb },
+    };
+    return response satisfies PermissionsResponse;
 }
 
 /**

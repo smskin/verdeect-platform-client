@@ -179,6 +179,67 @@ describe('AC-8: схема ответа permissions (§3.2)', () => {
     });
 });
 
+describe('AC-20: limits в ответе permissions (§3.2)', () => {
+    const withLimits = (limits: unknown): Record<string, unknown> => ({ ...ALLOWED, limits });
+
+    it('AC-20: пять ключей B.1 и fileSizeMb разбираются как есть', () => {
+        const limits = {
+            fileSizeMb: 50,
+            assistants: 3,
+            concurrentChats: null,
+            modelRequestsPerMonth: 1000,
+            modelRequestsPerMemberPerMonth: null,
+        };
+        expect(parsePermissionsResponse(withLimits(limits))?.limits).toStrictEqual(limits);
+    });
+
+    it('AC-20 / UC-5 A1: только fileSizeMb (Platform v1.11) — других ключей нет', () => {
+        const parsed = parsePermissionsResponse(withLimits({ fileSizeMb: 50 }));
+        expect(parsed?.limits).toStrictEqual({ fileSizeMb: 50 });
+        expect(parsed !== undefined && 'assistants' in parsed.limits).toBe(false);
+    });
+
+    it('AC-20 / UC-5 A2: незнакомый ключ number | null — как есть', () => {
+        const parsed = parsePermissionsResponse(
+            withLimits({ fileSizeMb: 50, newLimit: 7, other: null }),
+        );
+        expect(parsed?.limits).toStrictEqual({ fileSizeMb: 50, newLimit: 7, other: null });
+    });
+
+    it('AC-20 / UC-5 A2: незнакомый ключ иного типа отброшен, имя передано в колбэк', () => {
+        const dropped: (readonly string[])[] = [];
+        const parsed = parsePermissionsResponse(
+            withLimits({ fileSizeMb: 50, flags: 'x', nested: { a: 1 } }),
+            (keys) => dropped.push(keys),
+        );
+        expect(parsed?.limits).toStrictEqual({ fileSizeMb: 50 });
+        expect(dropped).toStrictEqual([['flags', 'nested']]);
+    });
+
+    it.each([
+        ["assistants: 'x'", { fileSizeMb: 50, assistants: 'x' }],
+        ['нет fileSizeMb', { assistants: 3 }],
+        ["fileSizeMb: '50'", { fileSizeMb: '50' }],
+    ])('AC-20: известный ключ не number | null → undefined (%s)', (_name, limits) => {
+        expect(parsePermissionsResponse(withLimits(limits))).toBeUndefined();
+    });
+
+    it('AC-20: общий отказ — семь null и {fileSizeMb: null} (v1.11) разбираются', () => {
+        const seven = {
+            members: null,
+            storageMb: null,
+            fileSizeMb: null,
+            modelRequestsPerMonth: null,
+            modelRequestsPerMemberPerMonth: null,
+            concurrentChats: null,
+            assistants: null,
+        };
+        const base = { ...DENIED_BASE, epoch: 7, code: 'COMPANY_SUSPENDED', message: 'x' };
+        expect(parsePermissionsResponse({ ...base, limits: seven })?.limits).toStrictEqual(seven);
+        expect(parsePermissionsResponse(base)?.limits).toStrictEqual({ fileSizeMb: null });
+    });
+});
+
 describe('§5.1: ответы Identity', () => {
     it('§5.1: ответ token endpoint разбирается', () => {
         expect(

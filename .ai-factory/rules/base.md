@@ -18,7 +18,8 @@
 - `src/nest/` — адаптер NestJS (`./nest`). Зависит от ядра, `@nestjs/*` и `@verdeect/auth/nest`. Не импортирует `src/testing/`.
 - `src/testing/` — подделка Platform (`./testing`). Зависит только от ядра. Рабочий код её не импортирует.
 - Каждая точка входа — `index.ts` с явным списком реэкспортов (`export { … }`, `export type`). Zod-схемы (`schemas.ts`) не экспортируются.
-- Копии из `verdeect-platform` (`src/core/codes.ts`, `src/testing/catalog.ts`, `test/fixtures/*.schema.json`) правятся только синхронизацией с источником. В шапке копии — путь к источнику и коммит.
+- Копии из `verdeect-platform` (`src/core/codes.ts`, `src/core/limits.ts` — `apps/platform/src/modules/catalog/domain/limits.ts` @ `513886e`, `src/testing/catalog.ts`, `test/fixtures/*.schema.json`) правятся только синхронизацией с источником. В шапке копии — путь к источнику и коммит.
+- `dist/core/limits.d.ts` удаляется скриптом `build` после `tsc`: копия экспортирует zod-схему, а AC-12 запрещает импорт `zod` в `.d.ts` пакета. Копия не входит в публичные типы: ядро берёт из неё только тип для внутренней схемы, публичный `Limits` — интерфейс в `types.ts`.
 - ESM: относительные импорты с суффиксом `.js`. Типы — через `import type`.
 
 ## Обработка ошибок

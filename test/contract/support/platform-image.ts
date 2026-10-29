@@ -1,15 +1,19 @@
-// Образ и коммит Platform для слоя C (prd.md D10, §7 п. 4, п. 9): сборка ../verdeect-platform
-// (docker build --target production) или готовый PLATFORM_IMAGE; коммит — для отчёта прогона.
+// Образ и коммит Platform для слоя C (prd.md D10, §7 п. 4, п. 9): сборка PLATFORM_DIR (по умолчанию
+// ../verdeect-platform; docker build --target production) или готовый PLATFORM_IMAGE; коммит — для отчёта прогона.
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** Корень репозитория verdeect-platform рядом с этим репозиторием. */
-export const PLATFORM_REPO = fileURLToPath(
-    new URL('../../../../verdeect-platform', import.meta.url),
-);
+/**
+ * Корень репозитория verdeect-platform: PLATFORM_DIR (например, git worktree нужного коммита),
+ * по умолчанию ../verdeect-platform рядом с этим репозиторием.
+ */
+export const PLATFORM_REPO = process.env.PLATFORM_DIR?.trim()
+    ? resolve(process.env.PLATFORM_DIR.trim())
+    : fileURLToPath(new URL('../../../../verdeect-platform', import.meta.url));
 
-/** Тег образа, собранного из ../verdeect-platform. */
+/** Тег образа, собранного из PLATFORM_REPO. */
 const BUILT_IMAGE = 'verdeect-platform:contract';
 
 /** Предел сборки образа (§7 п. 9): globalSetup Vitest таймаутом не ограничен. */
@@ -129,7 +133,7 @@ export async function resolvePlatformImage(): Promise<PlatformImage> {
 
     if (!existsSync(PLATFORM_REPO)) {
         throw new Error(
-            `[contract] нет ${PLATFORM_REPO}: склонируйте verdeect-platform рядом с этим репозиторием или задайте PLATFORM_IMAGE`,
+            `[contract] нет ${PLATFORM_REPO}: склонируйте verdeect-platform рядом с этим репозиторием, задайте PLATFORM_DIR или PLATFORM_IMAGE`,
         );
     }
     const commit = await git(['rev-parse', 'HEAD']);
