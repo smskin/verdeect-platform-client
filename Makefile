@@ -21,7 +21,11 @@ FILTER ?=
 # Слой C: готовый образ Platform вместо сборки ../verdeect-platform и его коммит для отчёта (D10).
 PLATFORM_IMAGE ?=
 PLATFORM_COMMIT ?=
-export PLATFORM_IMAGE PLATFORM_COMMIT
+# Слой C: каталог verdeect-platform для сборки образа (например, git worktree нужного коммита).
+PLATFORM_DIR ?= ../verdeect-platform
+# Слой C: legacy — Platform без дополнения B.1 (AC-22, необязательный прогон).
+PLATFORM_LIMITS ?=
+export PLATFORM_IMAGE PLATFORM_COMMIT PLATFORM_DIR PLATFORM_LIMITS
 
 .DEFAULT_GOAL := help
 
@@ -56,7 +60,7 @@ test: ## Unit-тесты, затем perf AC-17 (--expose-gc); по имени u
 	$(PNPM) test:perf
 
 .PHONY: test-contract
-test-contract: ## Слой C против настоящего Platform в Testcontainers (локально, не в ci; PLATFORM_IMAGE, PLATFORM_COMMIT)
+test-contract: ## Слой C против настоящего Platform в Testcontainers (локально, не в ci; PLATFORM_DIR, PLATFORM_IMAGE, PLATFORM_COMMIT, PLATFORM_LIMITS)
 	$(PNPM) test:contract
 
 .PHONY: build

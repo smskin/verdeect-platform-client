@@ -51,6 +51,19 @@ const decision = await client.check(
 
 Сервис сам подписан на `platform.policy.changed` и передаёт конверт в `client.onPolicyChanged(envelope)` — пакет к RabbitMQ не подключается. Подробно — [docs/getting-started.md](docs/getting-started.md).
 
+## Лимиты тарифа
+
+С 1.1.0 `permissions()` отдаёт лимиты тарифа компании в `limits` (тип `Limits`):
+
+```ts
+const { limits } = await client.permissions(subject);
+if ('assistants' in limits && limits.assistants !== null) {
+    // limits.assistants — сколько ассистентов разрешено тарифом
+}
+```
+
+`null` — лимита нет; ключа нет — Platform его не прислал (до дополнения B.1 Platform шлёт только `fileSizeMb`). Ключи, незнакомые ключи и ошибки — [docs/getting-started.md](docs/getting-started.md#лимиты-тарифа); в подделке — `companies[].limits` и `fake.setLimits` ([docs/testing.md](docs/testing.md)).
+
 ## Подключение
 
 ```ts
@@ -119,7 +132,7 @@ list() {}
 <!-- consumer-example:start -->
 
 ```ts
-// Пример теста сервиса-потребителя (prd.md §5.5, UC-4, AC-12): подделка Platform, токены @verdeect/auth/testing, Vitest без настройки условий.
+// Пример теста сервиса-потребителя (prd.md §5.5, UC-4, UC-5, AC-12, AC-21): подделка Platform, токены @verdeect/auth/testing, Vitest без настройки условий.
 import 'reflect-metadata';
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -190,6 +203,19 @@ describe('UC-4: контроллер сервиса с createFakePlatform', () =
         fake.client.onPolicyChanged(fake.policyChanged('org_acme', ['acc_1']));
         expect(await listFiles()).toBe(403);
     });
+
+    it('UC-5: setLimits → limits после clear()', async () => {
+        fake.setLimits('org_acme', { assistants: 3 });
+        // Лимиты эпоху не меняют: снимок в кэше обновится по TTL или после clear().
+        fake.client.clear();
+        const { limits } = await fake.client.permissions({
+            sub: 'acc_1',
+            tenant: 'acme',
+            tenantId: 'org_acme',
+            act: 'human',
+        });
+        expect(limits.assistants).toBe(3);
+    });
 });
 ```
 
@@ -212,11 +238,11 @@ Fail-closed: истёкший снимок не используется. Код
 
 ## API
 
-| Подпуть                             | Значения                                                                                              | Типы                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@verdeect/platform-client`         | `createPlatformAuthzClient`, `clientCredentials`, `PlatformUnavailableError`, `PlatformContractError` | `Act`, `AllowedPermissions`, `ClientCredentialsOptions`, `Decision`, `DecisionCode`, `DeniedPermissions`, `GeneralDenyCode`, `MetricsEndpoint`, `MetricsRequestResult`, `ModuleState`, `PermissionDenyCode`, `PermissionsOptions`, `PermissionsResponse`, `PlatformAuthzClient`, `PlatformAuthzClientOptions`, `PlatformAuthzRaw`, `PlatformClientLogger`, `PlatformClientMetrics`, `Subject`, `TokenProvider`, `UnavailableReason` |
-| `@verdeect/platform-client/nest`    | `PlatformAuthzModule`, `PLATFORM_AUTHZ_CLIENT`, `RequirePermission`, `PermissionGuard`                | `PlatformAuthzModuleOptions`, `PlatformAuthzModuleAsyncOptions`, `PlatformDecision`                                                                                                                                                                                                                                                                                                                                                 |
-| `@verdeect/platform-client/testing` | `createFakePlatform`                                                                                  | `FakePlatform`, `FakePlatformOptions`, `FakeMember`, `FakeCompany`, `FakeModuleState`, `FakeCall`                                                                                                                                                                                                                                                                                                                                   |
+| Подпуть                             | Значения                                                                                              | Типы                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@verdeect/platform-client`         | `createPlatformAuthzClient`, `clientCredentials`, `PlatformUnavailableError`, `PlatformContractError` | `Act`, `AllowedPermissions`, `ClientCredentialsOptions`, `Decision`, `DecisionCode`, `DeniedPermissions`, `GeneralDenyCode`, `Limits`, `MetricsEndpoint`, `MetricsRequestResult`, `ModuleState`, `PermissionDenyCode`, `PermissionsOptions`, `PermissionsResponse`, `PlatformAuthzClient`, `PlatformAuthzClientOptions`, `PlatformAuthzRaw`, `PlatformClientLogger`, `PlatformClientMetrics`, `Subject`, `TokenProvider`, `UnavailableReason` |
+| `@verdeect/platform-client/nest`    | `PlatformAuthzModule`, `PLATFORM_AUTHZ_CLIENT`, `RequirePermission`, `PermissionGuard`                | `PlatformAuthzModuleOptions`, `PlatformAuthzModuleAsyncOptions`, `PlatformDecision`                                                                                                                                                                                                                                                                                                                                                           |
+| `@verdeect/platform-client/testing` | `createFakePlatform`                                                                                  | `FakePlatform`, `FakePlatformOptions`, `FakeMember`, `FakeCompany`, `FakeModuleState`, `FakeCall`                                                                                                                                                                                                                                                                                                                                             |
 
 У каждого экспорта есть TSDoc — описание видно в подсказках редактора.
 

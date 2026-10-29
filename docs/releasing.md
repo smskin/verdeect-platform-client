@@ -15,7 +15,7 @@
    make test-contract
    ```
 
-   Все тесты зелёные. В выводе есть строка `[contract] Platform: <commit> (build …), dirty: no` — этот коммит (7 знаков) записывается в таблицу «Совместимость» README (NFR-5). Для выпуска не годится прогон с `PLATFORM_IMAGE` без `PLATFORM_COMMIT` (коммит `unknown`) или с `dirty: yes`. Красный тест слоя C — выпуск останавливается: либо Platform нарушил контракт, либо копию каталога или схемы нужно синхронизировать с источником.
+   Все тесты зелёные. В выводе есть строка `[contract] Platform: <commit> (build …), dirty: no` — этот коммит (7 знаков) записывается в таблицу «Совместимость» README (NFR-5). Для выпуска не годится прогон с `PLATFORM_IMAGE` без `PLATFORM_COMMIT` (коммит `unknown`) или с `dirty: yes`. Выпускной прогон идёт без `PLATFORM_LIMITS` (`[contract] limits mode: b1`): AC-22 проверяет ключи B.1 в `limits`; `PLATFORM_LIMITS=legacy` — только необязательная проверка совместимости с Platform без дополнения B.1. Чтобы не переключать рабочую копию `../verdeect-platform`, образ можно собрать из отдельного worktree: `git -C ../verdeect-platform worktree add <dir> <commit>`, затем `make test-contract PLATFORM_DIR=<dir>`. Красный тест слоя C — выпуск останавливается: либо Platform нарушил контракт, либо копию каталога или схемы нужно синхронизировать с источником.
 
 3. **Повысить `version`** в `package.json` по semver (см. ниже).
 4. **Дописать раздел версии в `CHANGELOG.md`**: перенести пункты из `## [Unreleased]` в `## [X.Y.Z] - ГГГГ-ММ-ДД` с датой тега. У 1.0.0 раздел уже есть — поправить дату на дату тега. Новый экспорт — строка в `### Added` и в таблице «API» README.

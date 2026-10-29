@@ -80,6 +80,24 @@ const fresh = await client.permissions(subject, { fresh: true }); // мимо к
 
 Агенту (`act: 'agent'`) нужен `pep` из токена: без него — `PlatformContractError` `PEP_REQUIRED`. `pep` в Platform не передаётся: `pep < epoch` снимка → `CONTEXT_REVOKED`, `pep > epoch` → один запрос `permissions` с `minEpoch` (D5).
 
+### Лимиты тарифа
+
+С 1.1.0 снимок несёт лимиты тарифа компании — `snapshot.limits` (тип `Limits`, prd.md §3.2):
+
+```ts
+const { limits } = await client.permissions(subject);
+const maxAssistants = 'assistants' in limits ? limits.assistants : undefined;
+// null — без лимита; undefined — Platform ключ не прислал
+```
+
+- ключи — копия схемы `Limits` Platform: `fileSizeMb` (всегда есть), `members`, `storageMb`, `modelRequestsPerMonth`, `modelRequestsPerMemberPerMonth`, `concurrentChats`, `assistants`;
+- `null` — лимита нет; отсутствующий ключ — Platform его не прислал (до дополнения B.1 Platform шлёт только `fileSizeMb`);
+- незнакомый ключ со значением `number | null` передаётся как есть, иной — отбрасывается (`debug 'limits keys dropped'` с именами ключей);
+- известный ключ не `number | null` → `PlatformContractError` `INVALID_RESPONSE`, снимок не кэшируется;
+- в общем отказе `limits` тоже `Limits` (Platform шлёт `null`).
+
+Лимиты не меняют эпоху политики: новое значение видно после TTL снимка или `fresh: true`.
+
 ## 5. Событие `platform.policy.changed`
 
 Пакет к RabbitMQ не подключается (D7). Сервис подписан на `platform.policy.changed` сам и передаёт конверт:

@@ -31,16 +31,16 @@
 
 `code` — код Platform, код OAuth или локальный код:
 
-| `code`                                         | Когда                                                               |
-| ---------------------------------------------- | ------------------------------------------------------------------- |
-| `SCOPE_REQUIRED`, `FORBIDDEN` (403)            | у сервисного токена нет `platform:authz` или это не сервисный токен |
-| `HTTP_404` и прочие `HTTP_<status>`            | 4xx без кода Platform, например неверный `baseUrl`                  |
-| `VALIDATION_FAILED`, `TENANT_MISMATCH` (422)   | Platform отклонил тело запроса                                      |
-| `INVALID_RESPONSE`                             | ответ Platform или Identity не по схеме или не JSON                 |
-| `UNKNOWN_PERMISSION`                           | локально: права нет в каталоге снимка (`details.permission`)        |
-| `PEP_REQUIRED`                                 | локально: агент без `pep`                                           |
-| `VALIDATION_FAILED`                            | локально: `pep` не целое ≥ 1, пустой список `checkMany`             |
-| поле `error` ответа OAuth (`invalid_client` …) | Identity: 4xx кроме 429                                             |
+| `code`                                         | Когда                                                                                                         |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `SCOPE_REQUIRED`, `FORBIDDEN` (403)            | у сервисного токена нет `platform:authz` или это не сервисный токен                                           |
+| `HTTP_404` и прочие `HTTP_<status>`            | 4xx без кода Platform, например неверный `baseUrl`                                                            |
+| `VALIDATION_FAILED`, `TENANT_MISMATCH` (422)   | Platform отклонил тело запроса                                                                                |
+| `INVALID_RESPONSE`                             | ответ Platform или Identity не по схеме или не JSON (в том числе известный ключ `limits` не `number \| null`) |
+| `UNKNOWN_PERMISSION`                           | локально: права нет в каталоге снимка (`details.permission`)                                                  |
+| `PEP_REQUIRED`                                 | локально: агент без `pep`                                                                                     |
+| `VALIDATION_FAILED`                            | локально: `pep` не целое ≥ 1, пустой список `checkMany`                                                       |
+| поле `error` ответа OAuth (`invalid_client` …) | Identity: 4xx кроме 429                                                                                       |
 
 Ошибка контракта — без повтора, в кэш не пишется, лог `error` не чаще раза в 60 с на код.
 
