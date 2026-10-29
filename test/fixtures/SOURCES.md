@@ -4,8 +4,8 @@
 
 | Файл | Источник | Коммит |
 |---|---|---|
-| `platform-events.schema.json` | `apps/platform/contracts/events/platform-events.schema.json` | `7adb423` |
-| `identity-events.schema.json` | `apps/platform/contracts/events/identity-events.schema.json` | `7adb423` |
+| `platform-events.schema.json` | `apps/platform/contracts/events/platform-events.schema.json` | `513886e` |
+| `identity-events.schema.json` | `apps/platform/contracts/events/identity-events.schema.json` | `513886e` |
 
 Перекопировать (`<file>` — имя файла из таблицы):
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createPlatformAuthzClient } from '../../src/core/client.js';
 import type { PermissionDenyCode, Subject, TokenProvider } from '../../src/core/types.js';
 
-// 20 прав Platform @ 7adb423 + 4 для полного объёма (24).
+// 20 прав Platform @ 513886e + 4 для полного объёма (24).
 const PERMISSIONS = [
     'chat.use',
     'chat.web',

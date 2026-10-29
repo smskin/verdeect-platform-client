@@ -1,4 +1,4 @@
-// Копия verdeect-platform apps/platform/src/modules/catalog/domain/decision-codes.ts @ 7adb423 (prd.md §3.4, D9, AC-11).
+// Копия verdeect-platform apps/platform/src/modules/catalog/domain/decision-codes.ts @ 513886e (prd.md §3.4, D9, AC-11).
 // Не править вручную: только перекопировать из источника и обновить коммит в этой строке.
 /** Коды и сообщения решений (prd.md §5.6) — тексты дословно. */
 export const DECISION_MESSAGES = {
