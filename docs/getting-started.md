@@ -9,7 +9,7 @@
 Версия указывается точно (D1):
 
 ```bash
-pnpm add @verdeect/platform-client@1.0.1
+pnpm add @verdeect/platform-client@1.1.0
 ```
 
 Ядру нужен только `zod` — он приходит вместе с пакетом. Peer-зависимости (`@nestjs/*`, `@verdeect/auth`, `reflect-metadata`, `rxjs`) нужны только подпути `nest`.

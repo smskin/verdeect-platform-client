@@ -99,15 +99,24 @@ describe('§4: документация пакета', () => {
         expect(broken).toEqual([]);
     });
 
-    it('NFR-5: README — таблица совместимости: 1.x, контракт v1, PRD Platform v1.11, коммит Platform (7+ hex), @verdeect/auth ^1.0.1', () => {
+    it('NFR-5: README — таблица совместимости: 1.0.x и 1.1.x, контракт v1, PRD Platform и коммит, @verdeect/auth ^1.0.1', () => {
         const compatibility = section(readme, 'Совместимость');
-        const row = compatibility.split('\n').find((line) => line.startsWith('| `1.x`'));
+        const lines = compatibility.split('\n');
+        const row10 = lines.find((line) => line.startsWith('| `1.0.x`'));
+        const row11 = lines.find((line) => line.startsWith('| `1.1.x`'));
 
-        expect(row, 'строка 1.x').toBeDefined();
-        expect(row).toContain('`v1`');
-        expect(row).toContain('v1.11');
-        expect(row).toMatch(/`[0-9a-f]{7,40}`/);
-        expect(row).toContain('`^1.0.1`');
+        expect(row10, 'строка 1.0.x').toBeDefined();
+        expect(row10).toContain('v1.11');
+        expect(row10).toContain('`7adb423`');
+        expect(row11, 'строка 1.1.x').toBeDefined();
+        expect(row11).toMatch(/v1\.\d+/);
+        for (const row of [row10, row11]) {
+            expect(row).toContain('`v1`');
+            expect(row).toMatch(/`[0-9a-f]{7,40}`/);
+            expect(row).toContain('`^1.0.1`');
+        }
+        // 1.1.0 против Platform до B.1: в limits только fileSizeMb.
+        expect(compatibility).toMatch(/1\.1\.0 — Platform ≥ `[0-9a-f]{7,40}`/);
     });
 
     it('§4 / AGENTS.md: каждое имя, экспортированное src/core/index.ts, src/nest/index.ts и src/testing/index.ts, есть в разделе README «API»', async () => {

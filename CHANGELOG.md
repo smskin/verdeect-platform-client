@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-29
+
+Лимиты тарифа в ответе `permissions` (UC-5); контракт Platform `v1`, PRD Platform v1.14; слой C пройден на `verdeect-platform` `513886e`. Против Platform до `513886e` в `limits` только `fileSizeMb`, как в 1.0.x.
+
 ### Added
 
 - Тип `Limits` — лимиты тарифа компании в ответе `permissions` (с 1.1.0): копия ключей схемы Platform, незнакомые числовые ключи передаются как есть.

@@ -199,7 +199,7 @@ Authority: `requirements/0000-platform-client/prd.md` **v1.12 (r6)** > `.ai-fact
   - Логи: `[contract]` — режим, ключи `limits` ответа (только имена).
   - **Skill:** nestjs-code test integration ac-22-limits (CREATE) — слой C, Testcontainers; nestjs-code generic test/contract/support/global-setup.ts (MODIFY); `docs/releasing.md` — none, документация.
 
-- [ ] **Task 13: Прогон слоя C и шлюз AC-22 ⛔** — после T11, T12
+- [x] **Task 13: Прогон слоя C и шлюз AC-22 ⛔** — после T11, T12
   - `PLATFORM_LIMITS=legacy make test-contract` против текущего `../verdeect-platform` `main` (`7adb423`): AC-13, AC-14, AC-15 (C) и AC-22 (без B.1) зелёные. Это подтверждает UC-5 A1: 1.1.0 работает с Platform v1.11.
   - `git -C ../verdeect-platform fetch origin`; проверить, что `origin/main` отдаёт B.1/E7: `limits` в `rs-member-permissions.ts` шире `fileSizeMb`.
     - **Нет** (так было при планировании) → записать в этот план под задачей «AC-22: ожидающий — Platform `main` = <sha> без B.1» и ⛔ **остановиться**: Phase 5 не начинается, пользователь получает вопрос. Ветку можно слить в `main` без выпуска — только по решению пользователя.
@@ -212,12 +212,17 @@ Authority: `requirements/0000-platform-client/prd.md` **v1.12 (r6)** > `.ai-fact
     - AC-14 / D5 красный: `member:grant` CLI выполнил команду (`exitCode 0`, «command finished»), но процесс не завершился → код 124 (таймаут `docker exec`). Код пакета E4 этот путь не трогает. Вероятная причина — изменение пулов в `8bf749b`; нужен повтор против `7adb423`.
   - Повтор (2026-10-29, по решению пользователя): `make test-contract PLATFORM_LIMITS=legacy PLATFORM_DIR=/tmp/platform-7adb423` (git worktree `7adb423`, после прогона удалён). `[contract] Platform: 7adb423…, dirty: no` — 15 пройдено, 1 пропущен (AC-22 с B.1): AC-13, AC-14, AC-15 (C) и «AC-22 (без B.1)» зелёные — UC-5 A1 подтверждён. Для прогона добавлена переменная `PLATFORM_DIR` (Makefile, `platform-image.ts`).
   - ⛔ Решение пользователя: выпуска нет. AC-22 ожидающий; ветка E4 ждёт слияния доводки r11 Platform; тег `v1.1.0` не ставится. T14–T15 не выполняются.
+  - Прогон на `a4fb27f` (r9, r10, без B.1): у CLI код 124. Диагностика PL-01: CLI не зависал, а медленно стартовал под нагрузкой хоста. Исправлено в PC-02: предел CLI 120 с и `PLATFORM_CLI_TIMEOUT_MS`.
+  - **AC-22 зелёный** (2026-10-29, PC-03). Платформа r11 влита: `origin/main` = `513886e` (PRD Platform v1.14, D25).
+    - Копия `limits.ts` перекопирована: добавлен `NULL_LIMITS`, ключи и правила значений прежние. Остальные копии не менялись, обновлена только ссылка `@ 513886e`.
+    - AC-22 дополнен двумя проверками: у admin все семь ключей Limits со значениями тарифа; при общем отказе (`NOT_MEMBER`) все семь ключей `null`.
+    - Прогон `make test-contract PLATFORM_DIR=<worktree 513886e>` без `PLATFORM_LIMITS`: `[contract] Platform: 513886e…, dirty: no`, `limits mode: b1`, 16 пройдено, 1 пропущен (вариант legacy).
 
 <!-- Commit checkpoint: T9–T13 -->
 
 ### Phase 5: Выпуск 1.1.0 (только после зелёного AC-22 и ответа пользователя)
 
-- [ ] **Task 14: Версия 1.1.0, CHANGELOG, совместимость (NFR-5)** — после T13 (AC-22 зелёный)
+- [x] **Task 14: Версия 1.1.0, CHANGELOG, совместимость (NFR-5)** — после T13 (AC-22 зелёный)
   - `package.json`: `"version": "1.1.0"`.
   - CHANGELOG: `[Unreleased]` → `## [1.1.0] - <дата>` со вступлением: «Лимиты тарифа в ответе `permissions` (UC-5); контракт Platform `v1`, PRD Platform <версия с B.1>; слой C пройден на `<коммит T13>`». Пустой `[Unreleased]` над ним.
   - README «Совместимость»: строки `1.0.x` (`v1`, v1.11, `7adb423`, `^1.0.1`) и `1.1.x` (`v1`, <PRD Platform с B.1>, `<коммит T13>`, `^1.0.1`). Версию в инструкции по установке README и `docs/getting-started.md` поднять до 1.1.0, как в 1.0.1.
@@ -259,7 +264,7 @@ Authority: `requirements/0000-platform-client/prd.md` **v1.12 (r6)** > `.ai-fact
 | UC-5 A3 | T7, T9 | `fake-platform.spec.ts` «AC-21: setLimits сливается …»; consumer «UC-5: setLimits …» |
 | AC-20 | T1–T6 | `test/unit/limits.spec.ts` (шапка, ключи, совпадение с источником); `schemas.spec.ts` «AC-20: limits в ответе permissions (§3.2)»; `client-limits.spec.ts`; `test/perf/check.perf.spec.ts` AC-17 |
 | AC-21 | T7–T10 | `fake-platform.spec.ts` «AC-21: …»; `test/package/consumer.spec.ts` «AC-12: пример «Тесты потребителя» в README совпадает с …» |
-| AC-22 | T12, T13 | `test/contract/ac-22-limits.spec.ts` «AC-22: permissions() admin …» — **ожидающий** до B.1 в `main` Platform; «AC-22 (без B.1) …» |
+| AC-22 | T12, T13 | `test/contract/ac-22-limits.spec.ts` «AC-22: permissions() admin …», «AC-22: общий отказ (NOT_MEMBER) …» — зелёные на Platform `513886e`; «AC-22 (без B.1) …» |
 | NFR-1 (AC-17) | T6 | `test/perf/check.perf.spec.ts` |
 | NFR-5 | T14 | `test/package/docs.spec.ts` «NFR-5: …» |
 | AC-12 | T9–T11 | `test/package/consumer.spec.ts` |
