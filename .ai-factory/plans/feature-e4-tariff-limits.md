@@ -232,13 +232,14 @@ Authority: `requirements/0000-platform-client/prd.md` **v1.12 (r6)** > `.ai-fact
   - Логи: нет.
   - **Skill:** nestjs-code test unit docs (MODIFY) — для `docs.spec.ts`; остальное — none (манифест и документация).
 
-- [ ] **Task 15: Слияние и тег `v1.1.0` ⛔** — после T14
+- [x] **Task 15: Слияние и тег `v1.1.0` ⛔** — после T14
   - Перед действием — подтверждение пользователя (внешнее действие).
   - Слить `feature/e4-tariff-limits` в `main` (`--no-ff`, как E3), `git push origin main`.
   - `git tag v1.1.0` на коммите слияния, `git push origin v1.1.0` → CI: lint → test → build → publish (Trusted Publishing). Ручной `npm publish` запрещён.
   - Проверить job publish и `npm view @verdeect/platform-client@1.1.0 version`.
   - Логи: `[publish]` — существующий префикс `scripts/publish.mjs`.
   - **Skill:** none — git и CI.
+  - Выполнено 2026-10-29: слияние `20b6437` в `main`, тег `v1.1.0`. CI-запуск 40927616580: lint, test (22, 24), build и publish зелёные. `npm view @verdeect/platform-client@1.1.0 version` → `1.1.0`, с provenance (Trusted Publishing).
 
 ### Phase 6: Документация
 
