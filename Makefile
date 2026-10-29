@@ -25,7 +25,9 @@ PLATFORM_COMMIT ?=
 PLATFORM_DIR ?= ../verdeect-platform
 # Слой C: legacy — Platform без дополнения B.1 (AC-22, необязательный прогон).
 PLATFORM_LIMITS ?=
-export PLATFORM_IMAGE PLATFORM_COMMIT PLATFORM_DIR PLATFORM_LIMITS
+# Слой C: предел одного вызова CLI Platform, мс (целое > 0); пусто — 120000.
+PLATFORM_CLI_TIMEOUT_MS ?=
+export PLATFORM_IMAGE PLATFORM_COMMIT PLATFORM_DIR PLATFORM_LIMITS PLATFORM_CLI_TIMEOUT_MS
 
 .DEFAULT_GOAL := help
 
@@ -60,7 +62,7 @@ test: ## Unit-тесты, затем perf AC-17 (--expose-gc); по имени u
 	$(PNPM) test:perf
 
 .PHONY: test-contract
-test-contract: ## Слой C против настоящего Platform в Testcontainers (локально, не в ci; PLATFORM_DIR, PLATFORM_IMAGE, PLATFORM_COMMIT, PLATFORM_LIMITS)
+test-contract: ## Слой C против настоящего Platform в Testcontainers (локально, не в ci; PLATFORM_DIR, PLATFORM_IMAGE, PLATFORM_COMMIT, PLATFORM_LIMITS, PLATFORM_CLI_TIMEOUT_MS)
 	$(PNPM) test:contract
 
 .PHONY: build

@@ -101,7 +101,7 @@ make lint            # ESLint (TSDoc, границы ядра) + Prettier check
 make analyse         # tsc --noEmit
 make test            # слой U (test/unit), затем perf AC-17; make test FILTER='AC-6'
 make build           # dist/ (.js + .d.ts)
-make test-contract   # слой C в Testcontainers (локально, не в ci); PLATFORM_IMAGE=<ref> PLATFORM_COMMIT=<sha>; PLATFORM_DIR=<worktree>; PLATFORM_LIMITS=legacy — Platform без B.1
+make test-contract   # слой C в Testcontainers (локально, не в ci); PLATFORM_IMAGE=<ref> PLATFORM_COMMIT=<sha>; PLATFORM_DIR=<worktree>; PLATFORM_LIMITS=legacy — Platform без B.1; PLATFORM_CLI_TIMEOUT_MS=<мс> — предел вызова CLI (120000)
 make pack-check      # pnpm pack:check: publint --strict + attw esm-only + test:package (AC-12, AC-16)
 make test-package    # только проекты-потребители упакованного архива (после build)
 make ci              # lint analyse test build pack-check

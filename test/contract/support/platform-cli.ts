@@ -2,8 +2,28 @@
 // docker exec в контейнере сервиса; хвост docker logs сервиса для сообщений о сбое.
 import { runProcess, tail, TAIL_LINES } from './platform-image.js';
 
-/** CLI поднимает полный контекст Nest с БД на каждый вызов — предел шире 5 с §7 п. 7. */
-const EXEC_TIMEOUT_MS = 30_000;
+/**
+ * CLI поднимает полный контекст Nest с БД на каждый вызов — предел шире 5 с §7 п. 7. Старт под нагрузкой
+ * хоста — до ~35 с (Platform PL-03), большая часть уходит на загрузку модулей до Nest.
+ */
+const DEFAULT_CLI_TIMEOUT_MS = 120_000;
+
+/** Предел вызова CLI: PLATFORM_CLI_TIMEOUT_MS (целое > 0) или 120 с; иначе ошибка конфигурации. */
+export function cliTimeoutMs(): number {
+    const raw = process.env.PLATFORM_CLI_TIMEOUT_MS?.trim() ?? '';
+    if (raw === '') {
+        return DEFAULT_CLI_TIMEOUT_MS;
+    }
+    if (!/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(Number(raw))) {
+        throw new Error(
+            `[contract] PLATFORM_CLI_TIMEOUT_MS=${raw}: нужно целое число миллисекунд > 0`,
+        );
+    }
+
+    return Number(raw);
+}
+
+const EXEC_TIMEOUT_MS = cliTimeoutMs();
 
 /** Ответ member:grant / member:revoke при ok: true. */
 export interface MemberRoleResult {
@@ -41,12 +61,15 @@ async function memberRole(
         parsed = undefined;
     }
     const payload = (parsed ?? {}) as { ok?: unknown; error?: { code?: unknown } };
-    console.info(
-        `[contract] cli ${args.join(' ')}: код ${result.code}, ${payload.ok === true ? 'ok' : `ошибка ${String(payload.error?.code ?? 'нет JSON')}`}`,
-    );
+    // 124 — runProcess убил docker exec на хосте; node dist/cli.js в контейнере этим не останавливается.
+    const outcome =
+        result.code === 124
+            ? `предел ${EXEC_TIMEOUT_MS} мс истёк, процесс в контейнере мог доработать`
+            : `код ${result.code}, ${payload.ok === true ? 'ok' : `ошибка ${String(payload.error?.code ?? 'нет JSON')}`}`;
+    console.info(`[contract] cli ${args.join(' ')}: ${outcome}`);
     if (result.code !== 0 || payload.ok !== true) {
         throw new Error(
-            `[contract] ${args.join(' ')}: код ${result.code}, ${String(payload.error?.code ?? 'нет JSON')}\n` +
+            `[contract] ${args.join(' ')}: ${outcome}\n` +
                 `--- stdout ---\n${tail(result.stdout)}\n--- stderr ---\n${tail(result.stderr)}\n` +
                 `--- docker logs сервиса ---\n${await serviceLogsTail(containerId)}`,
         );

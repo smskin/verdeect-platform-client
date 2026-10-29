@@ -1,6 +1,7 @@
 // globalSetup слоя C (prd.md §7, D10): образ Platform → стенд → provide адресов, токенов и коммита
 // тестам; отчёт «[contract] Platform: <commit>» в начале и после результатов прогона; режим limits (AC-22).
 import type { TestProject } from 'vitest/node';
+import { cliTimeoutMs } from './platform-cli.js';
 import { resolvePlatformImage, type PlatformImage } from './platform-image.js';
 import { startPlatformStand } from './platform-stand.js';
 
@@ -16,6 +17,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
     console.info(
         `[contract] limits mode: ${process.env.PLATFORM_LIMITS === 'legacy' ? 'legacy' : 'b1'}`,
     );
+    console.info(`[contract] предел CLI: ${cliTimeoutMs()} мс`);
     const stand = await startPlatformStand(image);
 
     project.provide('platformUrl', stand.platformUrl);
