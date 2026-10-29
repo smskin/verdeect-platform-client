@@ -91,7 +91,14 @@ export function createPlatformAuthzClient(
                 : { sub, tenant, tenantId, act, minEpoch };
         logger?.debug({ tenantId, sub, act, minEpoch }, 'snapshot request');
         const promise = transport
-            .post('permissions', body, parsePermissionsResponse)
+            .post('permissions', body, (json) =>
+                parsePermissionsResponse(json, (keys) =>
+                    logger?.debug(
+                        { endpoint: 'permissions', tenantId, sub, keys },
+                        'limits keys dropped',
+                    ),
+                ),
+            )
             .then((snapshot) => {
                 const result = cache.accept({
                     key,
@@ -274,7 +281,11 @@ export function createPlatformAuthzClient(
                 transport.post('batch', body, (json): unknown => json),
             ),
             permissions: withContractLog((body: object) =>
-                transport.post('permissions', body, parsePermissionsResponse),
+                transport.post('permissions', body, (json) =>
+                    parsePermissionsResponse(json, (keys) =>
+                        logger?.debug({ endpoint: 'permissions', keys }, 'limits keys dropped'),
+                    ),
+                ),
             ),
         },
     };

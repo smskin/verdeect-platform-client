@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- Тип `Limits` — лимиты тарифа компании в ответе `permissions` (с 1.1.0): копия ключей схемы Platform, незнакомые числовые ключи передаются как есть.
+- `FakePlatform.setLimits` и `FakeCompany.limits` — лимиты компании подделки; по умолчанию семь ключей `null`.
+
+### Changed
+
+- `DeniedPermissions.limits` — тип `Limits` (раньше `{ fileSizeMb: null }`).
+
 ## [1.0.1] - 2026-10-28
 
 Первый выпуск через CI: npm Trusted Publishing (OIDC) с provenance. Код пакета не изменился.
