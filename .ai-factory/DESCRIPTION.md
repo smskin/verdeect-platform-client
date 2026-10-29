@@ -62,6 +62,7 @@ npm-библиотека для сервисов этапа 1 Вердикта 2
 
 **Источники копий** (в шапке каждой копии — источник и коммит) — `/home/administrator/projects/verdeect2/verdeect-platform`:
 - `catalog/domain/decision-codes.ts` → `src/core/codes.ts`;
+- `apps/platform/src/modules/catalog/domain/limits.ts` @ `7adb423` → `src/core/limits.ts` (схема `Limits`, prd.md §3.2). При сборке `dist/core/limits.d.ts` удаляется: копия экспортирует zod-схему, а AC-12 запрещает импорт `zod` в `.d.ts` пакета;
 - каталог прав и модулей → `src/testing/catalog.ts`;
 - `contracts/events/*.schema.json` → `test/fixtures/`.
 
