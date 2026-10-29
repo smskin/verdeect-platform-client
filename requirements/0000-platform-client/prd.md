@@ -1,5 +1,7 @@
 # PRD: `@verdeect/platform-client` — клиент авторизации Platform (Вердикт 2.0)
 
+> Версия 1.12 от 29.10.2026 — по запросу Orchestrator (`orchestrator/prd.md` приложение B.2): `limits` в ответе `permissions` — по копии схемы `Limits` Platform, незнакомые числовые ключи не срезаются (§3.2); `limits` в подделке — `FakeCompany.limits`, `setLimits` (§5.5); UC-5, AC-20–AC-22, этап E4, выпуск 1.1.0.
+>
 > Версия 1.11 от 28.10.2026 — по ревью E2: slug из `tenantId`, не проходящий шаблон Platform, и повтор `(tenantId, sub)` в `members` — `TypeError` (§5.5, AC-8a); AC-12 — граф импортов `dist/core/index.js`.
 >
 > Версия 1.10 от 28.10.2026 — по реализации E2: `tenant` подделки по умолчанию — slug из `tenantId`, неверный явный `tenant` — `TypeError` (§5.5, AC-8a).
@@ -24,7 +26,7 @@
 >
 > Версия 1.0 от 26.10.2026. Проработка в чате Platform-лайт (решение D14 `platform-lite/prd.md`: пакет, три потребителя с этапа 1). Отдельный репозиторий со своей инициализацией AI Factory и своим `/aif-prompts`.
 >
-> **Этот PRD самодостаточен**: контракт Platform, нужный пакету, повторён в §3. Источник истины контракта — `platform-lite/prd.md` **v1.11**: §5.6, §6.1 (примечание о требуемой эпохе), §7.1–7.3 (`minEpoch`), §9.2, §11, §15 «Отзыв»; код — `verdeect-platform` `main` (`7adb423` и новее). При расхождении правится там, затем здесь.
+> **Этот PRD самодостаточен**: контракт Platform, нужный пакету, повторён в §3. Источник истины контракта — `platform-lite/prd.md` **v1.11**: §5.6, §6.1 (примечание о требуемой эпохе), §5.5 (`Limits`), §7.1–7.3 (`minEpoch`), §9.2, §11, §15 «Отзыв»; код — `verdeect-platform` `main` (`7adb423` и новее). Ключи лимитов тарифа в ответе `permissions` (кроме `fileSizeMb`) — дополнение контракта Platform по `orchestrator/prd.md` приложение B.1 п. 1 (этап E4). При расхождении правится там, затем здесь.
 >
 > Формат — для AI Factory. Идентификаторы: D, UC, AC, NFR. `[OPEN]`, `[ASSUMPTION]`.
 >
@@ -84,11 +86,25 @@ type PermissionsResponse =
       permissions: string[];
       denied: Record<string, 'FORBIDDEN' | 'PLAN_MODULE' | 'MODULE_DISABLED'>;
       modules: { id: string; enabled: boolean; code?: 'PLAN_MODULE' | 'MODULE_DISABLED' }[];
-      limits: { fileSizeMb: number | null } }
+      limits: Limits }
   | { allow: false; epoch: number | null; memberId?: string; code: GeneralDenyCode; message: string;
-      roles: []; permissions: []; denied: {}; modules: []; limits: { fileSizeMb: null } };
+      roles: []; permissions: []; denied: {}; modules: []; limits: Limits };
 type GeneralDenyCode = 'NOT_MEMBER' | 'COMPANY_SUSPENDED' | 'ACCOUNT_DISABLED' | 'SEATS_EXCEEDED' | 'CONTEXT_REVOKED';
+
+// ключи — копия схемы Limits Platform (§5.5); значение — эффективный лимит компании, null — без лимита
+interface Limits {
+  readonly fileSizeMb: number | null;
+  readonly members?: number | null;
+  readonly storageMb?: number | null;
+  readonly modelRequestsPerMonth?: number | null;
+  readonly modelRequestsPerMemberPerMonth?: number | null;
+  readonly concurrentChats?: number | null;
+  readonly assistants?: number | null;
+  readonly [key: string]: number | null | undefined;   // незнакомые ключи Platform — как есть
+}
 ```
+
+**`limits`** (с 1.1.0): `fileSizeMb` обязателен; остальные ключи копии `Limits` необязательны — Platform без дополнения B.1 их не присылает, тогда ключа в ответе пакета **нет** (не `null`: «нет данных» и «без лимита» различаются, решает потребитель). Известный ключ — `number | null`, иначе ответ не по схеме → `PlatformContractError`. Незнакомый ключ со значением `number | null` передаётся как есть; с другим значением — отбрасывается, лог `debug`, без ошибки (новый вид лимита не должен ломать решения по правам). В общем отказе значения не проверяются сверх типа (Platform шлёт `null`). Копия ключей — `src/core/limits.ts` из `verdeect-platform` `apps/platform/src/modules/catalog/domain/limits.ts`, источник и коммит в шапке.
 
 `tenant` и `tenantId` — из одного `Principal`; несовпадение с компанией — 422 `TENANT_MISMATCH`. `permissions ∪ keys(denied)` = весь каталог прав Platform; `modules` — весь каталог модулей (без `title`). `minEpoch`: если эпоха снимка в кэше Platform меньше (или компании в снимке нет), Platform один раз перечитывает БД; на решение поле не влияет.
 
@@ -291,6 +307,7 @@ createFakePlatform(options?: { members?: FakeMember[]; companies?: FakeCompany[]
   grant(tenantId, sub, permissions: string[]): void; deny(tenantId, sub, code: GeneralDenyCode): void;
   setModule(tenantId, moduleId, state: 'enabled' | 'PLAN_MODULE' | 'MODULE_DISABLED'): void;   // по умолчанию все enabled
   setEpoch(tenantId, epoch): void; policyChanged(tenantId, subs?): unknown;   // возвращает конверт для onPolicyChanged
+  setLimits(tenantId, limits: Partial<Limits>): void;   // с 1.1.0; сливается с текущими, значение null — без лимита
   calls(): { path: string; body: unknown }[];
 }
 ```
@@ -298,10 +315,11 @@ createFakePlatform(options?: { members?: FakeMember[]; companies?: FakeCompany[]
 ```ts
 interface FakeMember  { tenantId: string; sub: string; permissions?: string[]; memberId?: string }   // memberId по умолчанию — из sub
 interface FakeCompany { tenantId: string; tenant?: string; epoch?: number;                       // tenant по умолчанию — slug из tenantId, epoch — 1
-                        modules?: Record<string, 'enabled' | 'PLAN_MODULE' | 'MODULE_DISABLED'> }
+                        modules?: Record<string, 'enabled' | 'PLAN_MODULE' | 'MODULE_DISABLED'>;
+                        limits?: Partial<Limits> }                                        // с 1.1.0
 ```
 
-Состояние подделки — как у Platform: участник `(tenantId, sub)`, которого нет в `members` и для которого не вызывали `grant` / `deny`, — общий отказ `NOT_MEMBER`. `grant(t, s, [])` — участник без прав (все права каталога — в `denied`). Компания, упомянутая в `members`, `grant`, `deny`, `setModule` или `setEpoch` и отсутствующая в `companies`, заводится с `epoch = 1`, все модули `enabled`. `tenant` по умолчанию — slug из `tenantId`: строчные буквы, каждый символ вне `[a-z0-9-]` → `-`, не длиннее 49 символов (`org_acme` → `org-acme`); так конверт `policyChanged` проходит схему Platform (`^_?[a-z0-9][a-z0-9-]{0,48}$`). Явный `tenant`, не проходящий этот шаблон, → `TypeError` при создании подделки. Slug, полученный из `tenantId` и не проходящий шаблон (пустой `tenantId`, первый символ вне `[a-z0-9]`, например `_acme` → `-acme`), → тоже `TypeError` с подсказкой задать `tenant` явно; slug молча не исправляется. Повтор `(tenantId, sub)` в `members` → `TypeError`. Ролей у подделки нет: права выдаются списком. `deny` принимает только коды общего отказа (`GeneralDenyCode`, §3.2); `FORBIDDEN` — это `grant` без права, `PLAN_MODULE` и `MODULE_DISABLED` — `setModule`; другой код → `TypeError`.
+Состояние подделки — как у Platform: участник `(tenantId, sub)`, которого нет в `members` и для которого не вызывали `grant` / `deny`, — общий отказ `NOT_MEMBER`. `grant(t, s, [])` — участник без прав (все права каталога — в `denied`). Компания, упомянутая в `members`, `grant`, `deny`, `setModule` или `setEpoch` и отсутствующая в `companies`, заводится с `epoch = 1`, все модули `enabled`. `tenant` по умолчанию — slug из `tenantId`: строчные буквы, каждый символ вне `[a-z0-9-]` → `-`, не длиннее 49 символов (`org_acme` → `org-acme`); так конверт `policyChanged` проходит схему Platform (`^_?[a-z0-9][a-z0-9-]{0,48}$`). Явный `tenant`, не проходящий этот шаблон, → `TypeError` при создании подделки. Slug, полученный из `tenantId` и не проходящий шаблон (пустой `tenantId`, первый символ вне `[a-z0-9]`, например `_acme` → `-acme`), → тоже `TypeError` с подсказкой задать `tenant` явно; slug молча не исправляется. Повтор `(tenantId, sub)` в `members` → `TypeError`. Ролей у подделки нет: права выдаются списком. Лимиты компании подделки по умолчанию — все семь ключей копии `Limits` со значением `null` (как Platform с дополнением B.1 и тарифом без лимитов); `companies[].limits` и `setLimits` меняют только переданные ключи; ключ вне копии `Limits` или значение не `number | null` (целое ≥ 1) → `TypeError`. Ответ разрешения и общего отказа несёт лимиты компании (`permissions().limits`); `setLimits` эпоху не меняет — как в Platform, смена лимитов видна после TTL снимка или `clear()`. `deny` принимает только коды общего отказа (`GeneralDenyCode`, §3.2); `FORBIDDEN` — это `grant` без права, `PLAN_MODULE` и `MODULE_DISABLED` — `setModule`; другой код → `TypeError`.
 
 Подделка строит ответ `permissions` по тем же правилам, что Platform (§6.1 шаги 8–10 Platform): право не выдано → `FORBIDDEN`; выдано, но его модуль не `enabled` → код модуля; `modules` — весь каталог по порядку. Каталог — `src/testing/catalog.ts`: копия `PERMISSION_KEYS` и каталога модулей (id, права, порядок) из `verdeect-platform` `apps/platform/src/modules/catalog/domain/`, источник и коммит в шапке. Неизвестное право → `PlatformContractError` (`UNKNOWN_PERMISSION`) при любом состоянии.
 
@@ -358,6 +376,16 @@ interface FakeCompany { tenantId: string; tenant?: string; epoch?: number;      
 **A3.** Импорт `testing` из рабочего кода сервиса → `ERR_PACKAGE_PATH_NOT_EXPORTED` при старте (в production условия `development` нет).
 **Результат:** guard'ы и обработка отказов сервиса проверены без Platform.
 
+**UC-5. Сервис читает лимиты тарифа.**
+**Актор:** сервис (Orchestrator). **Предусловие:** пакет 1.1.0+; Platform присылает ключи лимитов (дополнение B.1).
+1. `client.permissions({sub, tenant, tenantId, act: 'human'})` → снимок из кэша или запрос (§5.2).
+2. `limits.assistants`, `limits.concurrentChats`, `limits.modelRequestsPerMonth`, `limits.modelRequestsPerMemberPerMonth` — эффективные лимиты компании; `null` — без лимита.
+
+**A1.** Platform без дополнения B.1 → в `limits` только `fileSizeMb`, остальных ключей нет; решения по правам не меняются.
+**A2.** Platform прислал новый числовой ключ → он есть в `limits` как есть; нечисловой — отброшен, решение по правам получено.
+**A3.** Тест сервиса: `fake.setLimits(t, {assistants: 3})` → `permissions().limits.assistants = 3` после `clear()` или TTL.
+**Результат:** сервис применяет лимиты тарифа без собственного запроса к Platform и без обновления кода при появлении ключей.
+
 ---
 
 ## 7. Критерии приёмки
@@ -399,6 +427,10 @@ interface FakeCompany { tenantId: string; tenant?: string; epoch?: number;      
 - AC-18 (U, NFR-2) Подделанный `metrics` записывает вызовы. Попадание в кэш → `cacheResult('hit')`; промах → `miss` и `request('permissions', 'ok', s)` с `s > 0`; повторное чтение по `pep` → `miss`; ответ старше `lastSeenEpoch` → `stale`; 503 → `request('permissions', 'unavailable', …)`; 422 → `contract_error`; 401 + повтор → два вызова `request`. `clientCredentials` с подделанным `metrics`: запрос к Identity → `request('token', 'ok', s)`; повторный `getToken()` из кэша провайдера — без вызова; Identity 503 → `request('token', 'unavailable', …)`; 401 `invalid_client` → `request('token', 'contract_error', …)`; без `metrics` у `clientCredentials` — ошибок нет. Событие с новой эпохой → `policyEvent('applied')`, повтор того же события → `ignored`, неверный конверт → `invalid`. Ни в одном вызове нет `sub` и `tenantId`. Без `metrics` — ошибок нет.
 - AC-19 (U, §5.1, NFR-3) **Настройки:** `cacheTtlSec: 61`, `cacheTtlSec: 0`, `denyTtlSec: 6`, `maxEntries: 10`, `baseUrl: 'platform:3000'` → `TypeError`, в сообщении — имя параметра. **LRU:** `maxEntries: 100`, снимки 101 участника → самый давний вытеснен, `check` по нему → новый запрос; по недавнему — без запроса; при сбросе компании (`onPolicyChanged` без `subs`) индекс по `tenantId` не содержит вытесненных. **Транспорт:** `traceparent: () => '00-…-01'` → заголовок `traceparent` в запросе; `undefined` → заголовка нет; `Authorization: Bearer <токен>`; `Content-Type: application/json`. **Логи:** подделанный `logger` за весь набор U-тестов не получил строку, содержащую токен или `clientSecret` (поиск по значениям из фикстур). **`clear()`:** после него `check` → новый запрос без `minEpoch`; запрос, начатый до `clear()` и завершившийся после, возвращён вызывающему, следующий `check` — снова запрос (кэш пуст); токен повторно не запрашивается; запрос по участнику A идёт, `clear()`, новый `check(A)` → отдельный второй запрос, ответ первого — только первому вызывающему.
 
+- AC-20 (U, UC-5, §3.2) Ответ разрешения с `limits: {fileSizeMb: 50, assistants: 3, concurrentChats: null, modelRequestsPerMonth: 1000, modelRequestsPerMemberPerMonth: null}` → `permissions().limits` содержит все пять ключей с этими значениями (в том числе из кэша). Только `{fileSizeMb: 50}` → остальных ключей в ответе нет (не `null`). `{fileSizeMb: 50, newLimit: 7}` → `newLimit: 7` есть; `{fileSizeMb: 50, flags: 'x'}` → `flags` нет, лог `debug`, решение по правам получено. `assistants: 'x'` → `PlatformContractError`, в кэш не попал. Общий отказ с `limits` из семи `null` → проходит схему. Копия `src/core/limits.ts` совпадает по ключам со схемой `Limits` Platform (источник и коммит в шапке). AC-17 после изменения — в пределах NFR-1.
+- AC-21 (U, UC-5 A3, §5.5) Подделка: по умолчанию `permissions().limits` — семь ключей `null`; `companies: [{tenantId: t, limits: {assistants: 3}}]` → `assistants: 3`, остальные `null`; `setLimits(t, {concurrentChats: 2})` → после `client.clear()` `concurrentChats: 2`, `assistants` прежний; `setLimits` не меняет эпоху компании; `setLimits(t, {foo: 1})`, `setLimits(t, {assistants: 0})`, `setLimits(t, {assistants: 'x'})` → `TypeError`. Пример README «Тесты потребителя» показывает `setLimits` (проверка совпадения с шаблоном — AC-12).
+- AC-22 (C, UC-5) Против Platform с дополнением B.1: `permissions()` участника `admin` → `limits` содержит `fileSizeMb` и четыре ключа B.1 со значениями тарифа `default` из `seed/plans.json` Platform (`fileSizeMb: 50`, остальные `null`); ответ проходит zod-схему пакета. Против Platform без дополнения (`PLATFORM_IMAGE` старой версии, необязательный прогон) — в `limits` только `fileSizeMb`, остальные AC слоя C зелёные.
+
 ## 8. Нефункциональные требования
 
 | # | Область | Требование |
@@ -417,8 +449,9 @@ interface FakeCompany { tenantId: string; tenant?: string; epoch?: number;      
 | E1. Ядро | репозиторий по образцу `verdeect-auth` (CI — GitHub Actions, генерирует `/aif-ci` по образцу `verdeect-auth`), типы и схемы §3, копия кодов, кэш, объединение запросов, `minEpoch`, `lastSeenEpoch`, локальное решение, `checkMany`, `fresh`, `raw`, `onPolicyChanged`, `clientCredentials` с `refresh`, ошибки, логгер, метрики, проверка настроек, `test/perf` | AC-1–7, 7a, 7b, 8, 8b, 9, 11, 15 (U), 17, 18, 19 |
 | E2. Nest и `testing` | модуль, декоратор, guard (D11), `createFakePlatform` с `setModule`, копия каталога, условие `development`, проект-потребитель | AC-8a, 10, 12 |
 | E3. Контракт и публикация | стенд и контрактные тесты (локально, D10) против Platform `main` `7adb423`+, `ci.yml` с publish, `scripts/publish.mjs`, `docs/` (в том числе `releasing.md`), README, CHANGELOG, ручной выпуск `1.0.0`, `npm trust` | AC-13–14, 15 (C), 16 |
+| E4. Лимиты тарифа (1.1.0) | `Limits` в ответе `permissions` (§3.2, копия ключей `src/core/limits.ts`), лимиты подделки (`FakeCompany.limits`, `setLimits`, §5.5), README (лимиты, тесты потребителя), CHANGELOG `[1.1.0]`, таблица совместимости (NFR-5), выпуск `1.1.0` тегом через CI | AC-20, 21, 22 |
 
-**Зависимость:** E1–E3 — без внешних блокировок: `minEpoch` слит в `verdeect-platform` `main` `7adb423` (Platform v1.11). E2 — после E1, E3 — после E2.
+**Зависимость:** E1–E3 — без внешних блокировок: `minEpoch` слит в `verdeect-platform` `main` `7adb423` (Platform v1.11). E2 — после E1, E3 — после E2. E4 — слой U сразу; AC-22 и тег `v1.1.0` — после слияния дополнения B.1 в `main` `verdeect-platform` (коммит сообщит чат Platform).
 
 ## 10. Открытые вопросы
 
