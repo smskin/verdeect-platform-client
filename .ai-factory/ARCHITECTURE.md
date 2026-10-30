@@ -75,7 +75,7 @@ verdeect-platform-client/
 ├── tsconfig.json / tsconfig.build.json
 ├── vitest.config.ts / vitest.perf.config.ts / vitest.package.config.ts / vitest.contract.config.ts
 ├── eslint.config.js / .prettierrc.json
-├── Makefile                           # install, lint, analyse, test, test-perf, test-contract, build, pack-check, ci
+├── Makefile                           # install, lint, analyse, build, pack-check, ci; уровни test, test-module, test-timing, test-integration (test-contract), test-load, test-full
 ├── README.md / CHANGELOG.md
 └── requirements/ · .ai-factory/ · AGENTS.md
 ```

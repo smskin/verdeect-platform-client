@@ -49,7 +49,7 @@ npm-библиотека для сервисов этапа 1 Вердикта 2
 - **Проверки пакета:** `publint --strict`, `@arethetypeswrong/cli --profile esm-only`, состав `npm pack`.
 - **Линт и формат:** ESLint (flat config, typescript-eslint, TSDoc публичного API) и Prettier — по образцу `verdeect-auth`.
 - **CI и выпуск:** Makefile и GitHub Actions: lint → test (Node 22, 24) → build + `pack:check` → publish. Publish идёт по тегу `v<semver>` через npm Trusted Publishing (OIDC, provenance) и `scripts/publish.mjs`.
-- **БД, ORM, брокер, HTTP-сервер, Docker-образ, GlitchTip:** нет. Docker на хосте нужен только `make test-contract`.
+- **БД, ORM, брокер, HTTP-сервер, Docker-образ, GlitchTip:** нет. Docker на хосте нужен только слою C: `make test-integration` (псевдоним `make test-contract`) и `make test-full`.
 
 ## Интеграции
 

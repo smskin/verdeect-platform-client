@@ -39,6 +39,7 @@ interface Workflow {
         readonly pull_request?: unknown;
     };
     readonly permissions?: Record<string, string>;
+    readonly env?: Record<string, string>;
     readonly jobs: Record<string, WorkflowJob>;
 }
 
@@ -156,18 +157,20 @@ describe('AC-16: выпуск версии', () => {
         }
     });
 
-    it('NFR-6: jobs lint → test → build → publish; test — матрица Node 22 и 24; триггеры push (ветки и теги v[0-9]+.[0-9]+.[0-9]+) и pull_request; runs — make install/lint/analyse, make test, make build pack-check', () => {
+    it('NFR-6: jobs lint → test → build → publish; test и build — матрица Node 22 и 24; триггеры push (ветки и теги v[0-9]+.[0-9]+.[0-9]+) и pull_request; runs — make install/lint/analyse, make test и make test-timing (perf — тот же job), make build pack-check; TEST_TIMEOUT_SCALE = 1', () => {
         expect(Object.keys(workflow.jobs)).toEqual(['lint', 'test', 'build', 'publish']);
         expect(workflow.on.push?.branches).toEqual(['**']);
         expect(workflow.on.push?.tags).toEqual(['v[0-9]+.[0-9]+.[0-9]+']);
         expect(workflow.on).toHaveProperty('pull_request');
 
         expect(workflow.jobs['test']?.strategy?.matrix?.node).toEqual([22, 24]);
+        expect(workflow.jobs['build']?.strategy?.matrix?.node).toEqual([22, 24]);
         const runs = (name: string): string[] =>
             (workflow.jobs[name]?.steps ?? []).flatMap((step) => (step.run ? [step.run] : []));
         expect(runs('lint')).toEqual(['make install', 'make lint', 'make analyse']);
-        expect(runs('test')).toEqual(['make install', 'make test']);
+        expect(runs('test')).toEqual(['make install', 'make test', 'make test-timing']);
         expect(runs('build')).toEqual(['make install', 'make build pack-check']);
+        expect(workflow.env?.['TEST_TIMEOUT_SCALE']).toBe('1');
     });
 
     it('NFR-6 / D1: publish — needs lint, test, build; if только refs/tags/v; environment npm; GitHub-hosted runner; Node 24 и npm >= 11.15 до публикации; без registry-url; permissions id-token: write только у publish; без secrets, NODE_AUTH_TOKEN, NPM_TOKEN и continue-on-error', () => {
@@ -217,17 +220,41 @@ describe('AC-16: выпуск версии', () => {
         expect(loose).toEqual([]);
     });
 
-    it('D10: ни один jobs.*.steps[].run в ci.yml не содержит test-contract; среди пререквизитов ci: Makefile нет test-contract; цель test-contract есть и запускает vitest.contract.config.ts через test:contract', () => {
+    it('D10: ни один jobs.*.steps[].run в ci.yml не содержит test-contract, test-integration или test-full; ci: Makefile — lint analyse test test-timing build pack-check, без слоя C; test-full включает test-integration и test-timing; test-integration запускает vitest.contract.config.ts через test:contract, test-contract — его псевдоним', () => {
         const runs = Object.values(workflow.jobs).flatMap((job) =>
             job.steps.flatMap((step) => (step.run ? [step.run] : [])),
         );
-        expect(runs.filter((run) => run.includes('test-contract'))).toEqual([]);
-        expect(runs.filter((run) => run.includes('test:contract'))).toEqual([]);
+        for (const forbidden of [
+            'test-contract',
+            'test:contract',
+            'test-integration',
+            'test-full',
+        ]) {
+            expect(
+                runs.filter((run) => run.includes(forbidden)),
+                forbidden,
+            ).toEqual([]);
+        }
 
-        const ci = makefile.match(/^ci:([^#\n]*)/m)?.[1] ?? '';
-        expect(ci.trim()).toBe('lint analyse test build pack-check');
+        const prerequisites = (target: string): string[] =>
+            (makefile.match(new RegExp(`^${target}:([^#\\n]*)`, 'm'))?.[1] ?? '')
+                .trim()
+                .split(/\s+/)
+                .filter((name) => name !== '');
+        expect(prerequisites('ci')).toEqual([
+            'lint',
+            'analyse',
+            'test',
+            'test-timing',
+            'build',
+            'pack-check',
+        ]);
+        expect(prerequisites('test-full')).toEqual(
+            expect.arrayContaining(['test', 'test-integration', 'test-timing']),
+        );
+        expect(prerequisites('test-contract')).toEqual(['test-integration']);
 
-        const recipe = makefile.match(/^test-contract:.*\n((?:\t.*\n?)+)/m)?.[1] ?? '';
+        const recipe = makefile.match(/^test-integration:.*\n((?:\t.*\n?)+)/m)?.[1] ?? '';
         expect(recipe).toContain('test:contract');
         expect(scripts['test:contract']).toBe('vitest run -c vitest.contract.config.ts');
     });

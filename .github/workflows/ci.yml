@@ -1,8 +1,11 @@
 # CI и выпуск @verdeect/platform-client (prd.md D1, D10, NFR-6, AC-16, AC-17; образец — verdeect-auth ci.yml).
 #
 # Jobs, связанные через needs: lint → test → build → publish; каждый ставит зависимости сам (make install).
-# Проверки — на каждый push в ветку и pull_request. test — матрица Node 22 и 24 (engines.node ">=22.12"),
-# включает perf-набор AC-17; lint и build — Node 22 (минимальная поддерживаемая версия); build — pack:check (AC-16).
+# Проверки — на каждый push в ветку и pull_request. Уровни тестов (AGENTS.md): test — матрица Node 22 и 24
+# (engines.node ">=22.12"), шаги make test (слой U) и make test-timing (perf AC-17 — тот же job, prd.md AC-17);
+# build — матрица Node 22 и 24, make build pack-check (AC-16), dist/ выгружается из Node 22;
+# lint — Node 22 (минимальная поддерживаемая версия). TEST_TIMEOUT_SCALE в CI — 1.
+# test-load: нагрузочного набора нет — ручного job нет.
 # publish — только на тег v<major>.<minor>.<patch> после зелёных проверок, GitHub-hosted runner, Node 24 и
 # npm >= 11.15: scripts/publish.mjs сверяет тег с version, проверяет, что версии нет в npm, и запускает
 # npm publish --access public из собранного dist/.
@@ -14,7 +17,8 @@
 #   - 1.0.0 мейнтейнер публикует вручную (D1), затем npm trust github (smskin/verdeect-platform-client, ci.yml,
 #     environment npm) и запрет публикации токенами. Job publish для тега v1.0.0 падает на «версия уже
 #     опубликована» — это ожидаемо.
-# Контрактные тесты (make test-contract, слой C) в CI не запускаются — только локально перед тегом (D10).
+# Слой C (make test-integration, псевдоним make test-contract) и make test-full в CI не запускаются —
+# только локально перед слиянием и тегом (D10).
 # continue-on-error нигде не используется.
 name: ci
 
@@ -26,6 +30,10 @@ on:
 
 permissions:
   contents: read
+
+# Множитель тайм-аутов конфигов Vitest: в CI всегда 1 (поднимается только локально).
+env:
+  TEST_TIMEOUT_SCALE: '1'
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -66,22 +74,30 @@ jobs:
         run: make install
       - name: make test
         run: make test
+      - name: make test-timing
+        run: make test-timing
 
   build:
     needs: test
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
           cache: pnpm
       - name: make install
         run: make install
       - name: make build pack-check
         run: make build pack-check
-      - uses: actions/upload-artifact@v7
+      # publish скачивает один артефакт dist — из минимальной поддерживаемой версии Node.
+      - if: matrix.node == 22
+        uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
