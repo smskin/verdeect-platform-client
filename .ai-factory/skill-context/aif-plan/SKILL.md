@@ -1,7 +1,7 @@
 # Project Rules for /aif-plan
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-10-27
+> Last updated: 2026-10-30
 > Based on: 94 analyzed patches + 16 aif-improve fix logs + manual rules
 
 ## Rules
@@ -69,6 +69,16 @@
 ### Error Tracking (GlitchTip)
 **Source**: manual, 2026-10-12
 **Rule**: Production errors go to the self-hosted GlitchTip (`https://errors.ppmk.pro`, Sentry SDKs, policy and templates in the local skill `glitchtip-integration`). (1) If the project has no integration yet (no `sentry/sentry-laravel` / `@sentry/vue` / `sentry-sdk` / `@sentry/nestjs`), the first plan of an INIT or the next milestone adds an "Error tracking" phase: backend SDK, frontend SDK with runtime DSN, source maps upload in the CI build, production variables, empty DSN in dev/e2e/tests, scrubber and user-ID tests — each file task with its code skill and `glitchtip-integration` named as the integration reference. (2) Every task that adds an entry point (queue consumer, scheduled or console command, websocket handler, external callback, Python CLI/pipeline step) states how its errors reach GlitchTip; a `catch` that continues work calls `report($e)` / `capture_exception` / `Sentry.captureException(error)` (NestJS: RabbitMQ consumers, `@Cron` jobs and the outbox relay are entry points). (3) Never plan tracing, replay or profiling (errors only).
+
+### Fast Test Suites
+**Source**: manual, 2026-10-30 (verdeect-identity, ID-13–ID-16)
+**Rule**: Plans that create or extend test infrastructure (the foundation milestone, a new integration suite, a new e2e contour) build it fast from the start; plans of later milestones follow the same layout:
+(1) Password-hashing / KDF cost is configurable; integration tests and the e2e contour use the minimum cost (scrypt `N=1024`, bcrypt rounds 4, minimal argon2), except tests that verify the production hash format or cost and the timing / load suites, which pin production values. Production compose and `.env.example` never set the test value.
+(2) Containers (database, broker, cache, mail catcher) start once per run in global setup and migrations run once; files clean their own data (truncate, flush, delete their own mails by recipient) instead of restarting containers.
+(3) NestJS / Vitest: the integration config has two projects — `shared` with `isolate: false` (the module graph is imported once per worker) and `isolated` with `isolate: true`. A file goes to `isolated` when it writes `process.env` / `vi.stubEnv`, uses `vi.mock`, patches prototypes (`vi.spyOn(X.prototype)`), initialises Sentry or another process-global (undici dispatcher, `globalThis.fetch`), or asserts output of a process-wide singleton (e.g. the nestjs-pino root logger in CLI log assertions). The `isolated` list is explicit in the config with a reason per file; the rule for adding files is in the config comment and in the root agent rules file. Every file closes its applications, pools and connections in `afterAll`; spies on instances are restored. A leak between files is fixed in the test support code, not hidden by moving the file to `isolated`.
+(4) Timing-sensitive and load specs live in their own configs and Makefile targets (see the aif-build-automation rule "Test Levels"), never in `test-integration`.
+(5) Dependency and version policies (e.g. "no global undici dispatcher ≥ 7 in production dependencies") are static checks in `make analyse` (lockfile / `pnpm why --prod`), not unit tests that boot the application; a runtime assertion, if needed, goes into an existing http spec that already boots it.
+(6) Fake timers where elapsed time is not the subject of the test (code expiry, session windows — or shift timestamps in the database); real waits only where the behaviour of a real driver is tested (broker reconnect, connection timeouts, graceful shutdown).
 
 ### Browser Tests Without a Vue Stack
 **Source**: manual, 2026-10-15

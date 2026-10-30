@@ -1,7 +1,7 @@
 # Project Rules for /aif-verify
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-10-27
+> Last updated: 2026-10-30
 > Based on: manual rules
 
 ## Rules
@@ -33,6 +33,10 @@
 ### Error Tracking Gate
 **Source**: manual, 2026-10-12
 **Rule**: When the project uses GlitchTip (`sentry/sentry-laravel`, `@sentry/vue`, `sentry-sdk` or `@sentry/nestjs` present), check: DSNs are empty in `phpunit.xml`/pytest/Vitest config, `compose.override.yml`, `compose.e2e.yml` and `.env.example`; production compose lists the `SENTRY_*` variables by name; the scrubber and user-context tests pass; new entry points from this plan report their errors. Missing items are WARN (FAIL in `--strict`). When the project has no integration yet, report WARN `[error-tracking] not integrated` and suggest a milestone for it.
+
+### Test Levels in Verification
+**Source**: manual, 2026-10-30 (verdeect-identity)
+**Rule**: The test gate is `make test-full` (or `test` + `test-integration` + `test-timing` when the target is missing — WARN `[test-levels] missing targets`), plus `test-browser` / `test-visual` per the other rules. `test-timing` needs a quiet machine: when load average ≥ 8 (or above the number of cores), report it as DEFERRED with the measured value instead of FAIL, and list it under open items. A test that fails by timeout under load and passes when re-run alone is reported as FLAKY-UNDER-LOAD with file, test and duration — never silently dropped. In `--strict` it is FAIL if a file that writes env, mocks modules or patches prototypes runs in the `shared` (non-isolated) project, or if the hashing cost of the test configuration leaks into production compose / `.env.example`.
 
 ### Browser Tests Without a Vue Stack
 **Source**: manual, 2026-10-15

@@ -1,7 +1,7 @@
 # Project Rules for /aif-ci
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-10-27
+> Last updated: 2026-10-30
 > Based on: reference project `.gitlab-ci.yml` (GitLab, self-hosted runners) + NestJS service layout + manual rules
 
 ## Rules
@@ -42,6 +42,10 @@
 - `prepare-env` unsets `DATABASE_URL`, `DATABASE_MIGRATION_URL`, `RABBITMQ_URL`, `AUTH_*`, `AWS_*`/`S3_*`, `SENTRY_*` and any service URLs before tests; the comment explains why (a real database must never be reachable from a test job).
 - `Build`: builds `production` with `--build-arg VERSION=${CI_COMMIT_SHORT_SHA}`; backend source maps stay inside the image (`--enable-source-maps`) unless the service has a frontend.
 - **Shared SaaS deploy:** a Verdict service is one installation per environment, not one per client. Use a single manual deploy job per environment (`environment: production`, `resource_group: production`) that runs `pull`, `run --rm migrate`, `up -d`, `ps`; no `TENANT` matrix. The header comment lists the required variables (`DATABASE_URL`, `DATABASE_MIGRATION_URL`, `RABBITMQ_URL`, `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, issuer/JWKS settings, …).
+
+### Test Levels in CI
+**Source**: manual, 2026-10-30 (verdeect-identity)
+**Rule**: The pipeline runs `test`, `test-integration` and `test-timing` as separate jobs; `test-load` only as a manual job. `TEST_TIMEOUT_SCALE` is 1 in CI. When `test-integration` takes more than ~15 minutes, shard it (`parallel: N` + `--shard=$CI_NODE_INDEX/$CI_NODE_TOTAL`; 2–4 shards, each with its own service containers); `test-timing` runs on a runner without parallel jobs.
 
 ### Visual Regression Job
 **Source**: manual, 2026-10-21

@@ -1,7 +1,7 @@
 # Project Rules for /aif-dockerize
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-10-27
+> Last updated: 2026-10-30
 > Based on: reference project layout (Laravel modular monolith) + NestJS service layout + manual rules
 
 ## Rules

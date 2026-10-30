@@ -1,7 +1,7 @@
 # Project Rules for /aif-build-automation
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-10-27
+> Last updated: 2026-10-30
 > Based on: reference project Makefile (Laravel + Docker) + NestJS service layout + manual rules
 
 ## Rules
@@ -37,6 +37,17 @@
 - **Checks (host):** `test` (Vitest unit: `pnpm vitest run --config vitest.config.ts`), `test-filter FILTER=…`, `test-integration` (Vitest integration + http specs: `pnpm vitest run --config vitest.integration.config.ts`; PostgreSQL/RabbitMQ come from Testcontainers, or from `TEST_DATABASE_URL` / `TEST_RABBITMQ_URL` when set — never from the development `.env`), `lint` (`eslint .` + `prettier --check .`), `fmt` (`prettier --write .` + `eslint --fix`), `analyse` (`tsc --noEmit`), `front` only when the repository has a frontend, `ci` (all of the above in pipeline order).
 - **Images / Cleanup:** `image`, `config-prod`, `clean` (`dist`, `coverage`, `report.xml`), `clean-all` (asks for confirmation, `down -v`). E2E targets only when the service has a browser UI (see `/aif-dockerize` NestJS rule).
 - The header comment states that tests run on the host and integration tests start their own containers, so the development database is never touched; no `test-db` target is needed.
+
+### Test Levels
+**Source**: manual, 2026-10-30 (verdeect-identity, ID-13–ID-16: integration suite 103 → 18 min)
+**Rule**: The Makefile exposes test levels with fixed names (other skills rely on them):
+- `test` — unit specs only, no containers; never boots the whole application module.
+- `test-module M="<dir> …"` — integration + http specs of the listed module directories only (NestJS: `test/integration/<M>`, `test/http/<M>`; Laravel: the module's test directory; Python: the pytest path).
+- `test-integration` — all integration + http specs, WITHOUT the timing-sensitive and load suites.
+- `test-timing` — timing-sensitive specs (constant-time responses, rate windows) in their own config; refuses to run while the e2e contour is up; documented as "quiet machine only".
+- `test-load` — load / p95 specs in their own config, never part of `ci` by default.
+- `test-full` — `test` + `test-integration` + `test-timing`: the pre-merge gate.
+`TEST_TIMEOUT_SCALE` (default 1, set manually, never derived from the load automatically) multiplies the config-level test and hook timeouts of the test runner and of Playwright; CI always uses 1. `docs/development.md` has a table "level → when to run → approximate time", and the root agent rules file (`CLAUDE.md` or `AGENTS.md`) states: while working — `test` and `test-module` for the touched modules; before `/aif-commit` and merge — `test-full`; Playwright — the whole `test-browser` before merge when pages or interactions changed, otherwise only the affected specs. Regeneration or audit of the Makefile must not drop these targets.
 
 ### Visual Regression Target
 **Source**: manual, 2026-10-21

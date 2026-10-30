@@ -1,7 +1,7 @@
 # Project Rules for /aif-roadmap
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-10-13
+> Last updated: 2026-10-30
 > Based on: manual rules
 
 ## Rules

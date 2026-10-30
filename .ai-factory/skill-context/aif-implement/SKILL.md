@@ -1,7 +1,7 @@
 # Project Rules for /aif-implement
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-10-27
+> Last updated: 2026-10-30
 > Based on: 74 analyzed patches + manual rules
 
 ## Rules
@@ -37,6 +37,10 @@
 ### Requirement IDs in Test Names
 **Source**: manual, 2026-10-05
 **Rule**: Every test that verifies a requirement carries the requirement ID at the start of its name: Pest `test('AC-9: …')`; PHPUnit `#[TestDox('AC-9: …')]` (or method `test_ac_9_…` when TestDox is not used); pytest `test_ac_9_…`; Vitest `it('AC-9: …')` inside `describe('UC-3: …')`; Playwright `test('AC-9: …')` inside `test.describe('UC-3: …')`. Put the PRD/requirements references (UC-, AC-, FR-, BR-, EC- IDs and package path) in the file header comment. This is how `/aif-verify` builds the traceability matrix.
+
+### Test Levels While Working
+**Source**: manual, 2026-10-30 (verdeect-identity)
+**Rule**: During implementation run `make test` and `make test-module M="<touched modules>"` after each group of tasks, `make test-integration` once at the end of a phase, `make test-full` only in the final verification. A new integration file that writes env, mocks modules or patches prototypes is added to the `isolated` project with its reason (aif-plan rule "Fast Test Suites"). On a loaded machine (load average above the number of cores) set `TEST_TIMEOUT_SCALE=2..3` locally; a test that fails only by timeout is re-run alone before any investigation. Never raise timeouts inside spec files or lower the production hashing cost outside the test configuration to make a run green.
 
 ### Visual Regression Against Mockups
 **Source**: manual, 2026-10-21

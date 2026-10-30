@@ -1,7 +1,7 @@
 # Project Rules for /aif-review
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-10-27
+> Last updated: 2026-10-30
 > Based on: manual rules
 
 ## Rules
@@ -17,6 +17,10 @@
 ### Error Reporting
 **Source**: manual, 2026-10-12
 **Rule**: Flag as `major`: a `catch` that swallows a `Throwable` / `Error` without `report()` / `capture_exception` / `Sentry.captureException`; a DSN or GlitchTip token in code, config, compose defaults or `.env.example`; `send_default_pii` enabled, user context with e-mail/name/IP, or request bodies/tokens reaching events; tracing/replay/profiling turned on; a frontend DSN baked into the bundle (`VITE_*`). Rules: local skill `glitchtip-integration` (GT01–GT16).
+
+### Test Speed Regressions
+**Source**: manual, 2026-10-30 (verdeect-identity)
+**Rule**: Treat as blocking: timeouts raised inside spec files instead of fixing the cause; a file moved to the `isolated` project without a stated reason, or a file that writes env / mocks modules / patches prototypes left in `shared`; timing or load specs added to `test-integration`; a unit spec that imports the whole application module; production compose or `.env.example` setting the test hashing cost; real waits (`sleep`, polling) where elapsed time is not the subject of the test. Non-blocking (minor): new integration files without cleanup in `afterAll`.
 
 ### Visual Regression Against Mockups
 **Source**: manual, 2026-10-21
