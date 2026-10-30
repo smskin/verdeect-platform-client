@@ -260,15 +260,19 @@ Fail-closed: истёкший снимок не используется. Код
 
 ## Выпуск
 
-Только CI по тегу `vX.Y.Z` через npm Trusted Publishing, после зелёного `make test-contract` против текущего `main` Platform. Порядок — [docs/releasing.md](docs/releasing.md).
+Только CI по тегу `vX.Y.Z` через npm Trusted Publishing, после зелёного `make test-full` (включает слой C) против текущего `main` Platform. Порядок — [docs/releasing.md](docs/releasing.md).
 
 ## Разработка
 
 ```bash
-make help            # список целей
-make ci              # lint analyse test build pack-check — то же, что в CI
-make test-contract   # слой C против настоящего Platform (Docker, локально)
+make help              # список целей
+make test              # слой U без perf; make test-module M='cache decide' — по файлам
+make ci                # lint analyse test test-timing build pack-check — то же, что в CI
+make test-integration  # слой C против настоящего Platform (Docker, локально); псевдоним — make test-contract
+make test-full         # перед слиянием и выпуском: lint analyse test pack-check test-integration test-timing
 ```
+
+Уровни тестов и время — [docs/testing.md](docs/testing.md#уровни-тестов-пакета).
 
 ## Лицензия
 

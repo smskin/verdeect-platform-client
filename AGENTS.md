@@ -11,10 +11,10 @@
 - **Язык:** TypeScript (ESM, Node ≥ 22.12; CI — Node 22 и 24)
 - **Runtime-зависимость:** `zod` 4.6.7, единственная
 - **Фреймворк:** NestJS 12 и `@verdeect/auth` ^1.0.1 — необязательные peer-зависимости подпути `nest`
-- **Тесты:** Vitest (unit, perf с `--expose-gc`, проверки пакета, контракт). Testcontainers, `amqplib` — только слой C (`make test-contract`), локально.
+- **Тесты:** Vitest (unit, perf с `--expose-gc`, проверки пакета, контракт) по уровням `make test` / `test-module` / `test-timing` / `test-integration` / `test-full`. Testcontainers, `amqplib` — только слой C (`make test-integration`, псевдоним `make test-contract`), локально.
 - **Пакетный менеджер:** pnpm
 - **CI и выпуск:** GitHub Actions. Публикация — через npm Trusted Publishing, только по тегу `v<semver>`.
-- **БД, ORM, брокер, HTTP-сервер:** нет, это библиотека. Docker нужен только `make test-contract` (слой C).
+- **БД, ORM, брокер, HTTP-сервер:** нет, это библиотека. Docker нужен только слою C: `make test-integration` и `make test-full`.
 
 ## Структура проекта
 
@@ -56,7 +56,7 @@ verdeect-platform-client/
 │   │   └── support/              # подделанные fetch, часы, logger, metrics, TokenProvider; nest-app.ts; setup.ts (AC-19)
 │   ├── perf/                     # check.perf.spec.ts — p99 и память снимка (AC-17)
 │   ├── fixtures/                 # platform-events.schema.json, identity-events.schema.json (копии Platform), SOURCES.md
-│   ├── contract/                 # слой C против образа verdeect-platform (D10), только make test-contract
+│   ├── contract/                 # слой C против образа verdeect-platform (D10), только make test-integration / test-full
 │   │   ├── ac-13-catalog.spec.ts      # AC-13, AC-15 (C), UC-1: каталог, raw.check, COMPANY_SUSPENDED
 │   │   ├── ac-14-revocation.spec.ts   # AC-14, AC-15 (C), UC-2: member:grant/revoke, CONTEXT_REVOKED, minEpoch
 │   │   ├── ac-15-scope.spec.ts        # AC-15 (C): SCOPE_REQUIRED без platform:authz
@@ -71,17 +71,18 @@ verdeect-platform-client/
 │   │       └── contract-client.ts     # клиент пакета с записью вызовов, waitFor 5 с, prepareMember
 │   ├── package/                  # проверки архива: consumer.spec.ts (AC-12, AC-16), release.spec.ts (AC-16, NFR-6, D10), docs.spec.ts (§4, NFR-5, D1)
 │   │   └── support/              # pack.ts (runCommand с env), consumer-project.ts
-│   └── consumer/                 # шаблоны проектов-потребителей архива: core, nest-no-auth, full (exports-import.mjs — AC-16)
+│   ├── consumer/                 # шаблоны проектов-потребителей архива: core, nest-no-auth, full (exports-import.mjs — AC-16)
+│   └── support/timeout-scale.ts  # TEST_TIMEOUT_SCALE — множитель testTimeout/hookTimeout конфигов Vitest
 ├── docs/                         # getting-started, nestjs, testing, errors, releasing
 ├── scripts/publish.mjs           # публикация из CI: тег = version, версии нет в npm (AC-16)
-├── .github/workflows/ci.yml      # lint → test → build (pack-check) → publish по тегу v* (Trusted Publishing)
+├── .github/workflows/ci.yml      # lint → test (make test, make test-timing) → build (pack-check, Node 22 и 24) → publish по тегу v* (Trusted Publishing)
 ├── README.md / CHANGELOG.md      # посадочная страница, таблица совместимости; изменения по версиям
 ├── package.json                  # exports трёх подпутей, peer-зависимости optional
 ├── pnpm-workspace.yaml           # настройки pnpm
 ├── tsconfig.json / tsconfig.build.json
 ├── eslint.config.js / .prettierrc.json
 ├── vitest.config.ts / vitest.perf.config.ts / vitest.package.config.ts / vitest.contract.config.ts
-├── Makefile                      # install, lint, analyse, test, test-contract, build, pack-check, ci, clean
+├── Makefile                      # install, lint, analyse, build, pack-check, ci; уровни test, test-module, test-timing, test-integration (test-contract), test-load, test-full; clean
 ├── requirements/                 # пакеты требований
 │   ├── INDEX.md
 │   └── 0000-platform-client/     # prd.md, README.md (этапы E1–E3)
@@ -93,18 +94,24 @@ verdeect-platform-client/
 
 ## Команды
 
-Единая точка входа — `Makefile` (`make help`), все цели на хосте; Docker нужен только `test-contract`:
+Единая точка входа — `Makefile` (`make help`), все цели на хосте; Docker нужен только `test-integration` и `test-full`. Уровни и время — `docs/testing.md`, раздел «Уровни тестов пакета»:
 
 ```bash
 make install         # pnpm install --frozen-lockfile
 make lint            # ESLint (TSDoc, границы ядра) + Prettier check
 make analyse         # tsc --noEmit
-make test            # слой U (test/unit), затем perf AC-17; make test FILTER='AC-6'
+make test            # слой U (test/unit) без perf; make test FILTER='AC-6'
+make test-module     # слой U по файлам: make test-module M='cache decide' (подстроки test/unit/<m>; без M — весь слой U)
+make test-timing     # perf AC-17 (--expose-gc), только на тихой машине; при load > ядер — [test-timing] WARN
 make build           # dist/ (.js + .d.ts)
-make test-contract   # слой C в Testcontainers (локально, не в ci); PLATFORM_IMAGE=<ref> PLATFORM_COMMIT=<sha>; PLATFORM_DIR=<worktree>; PLATFORM_LIMITS=legacy — Platform без B.1; PLATFORM_CLI_TIMEOUT_MS=<мс> — предел вызова CLI (120000)
+make test-integration # слой C в Testcontainers (локально, не в ci); PLATFORM_IMAGE=<ref> PLATFORM_COMMIT=<sha>; PLATFORM_DIR=<worktree>; PLATFORM_LIMITS=legacy — Platform без B.1; PLATFORM_CLI_TIMEOUT_MS=<мс> — предел вызова CLI (120000)
+make test-contract   # псевдоним test-integration (docs/releasing.md, D10)
+make test-load       # нагрузочного набора нет — сообщение и код 0
+make test-full       # перед /aif-commit, слиянием и тегом: lint analyse test pack-check test-integration test-timing (те же PLATFORM_*)
 make pack-check      # pnpm pack:check: publint --strict + attw esm-only + test:package (AC-12, AC-16)
 make test-package    # только проекты-потребители упакованного архива (после build)
-make ci              # lint analyse test build pack-check
+make ci              # lint analyse test test-timing build pack-check — то же, что CI
+# TEST_TIMEOUT_SCALE=2..3 — множитель тайм-аутов конфигов Vitest, только локально на загруженной машине (в CI — 1)
 make clean           # dist, coverage, *.tgz
 ```
 
@@ -121,7 +128,7 @@ make clean           # dist, coverage, *.tgz
 | `test/contract/support/global-setup.ts` | стенд слоя C и отчёт коммита Platform (D10) |
 | `scripts/publish.mjs` | публикация из CI по тегу |
 | `package.json` | `exports` трёх подпутей, peer-зависимости |
-| `Makefile` | единая точка входа для проверок (`make ci`, `make test-contract`) |
+| `Makefile` | единая точка входа для проверок (`make ci`, `make test-full`, уровни тестов) |
 
 ## Документация
 
@@ -165,5 +172,8 @@ make clean           # dist, coverage, *.tgz
 - Ядро (`src/core/`) не импортирует `@nestjs/*`, `rxjs`, `reflect-metadata`, `@verdeect/auth`, `src/nest/`, `src/testing/`. `src/nest/` не импортирует `src/testing/`.
 - Копии из `verdeect-platform` не правятся вручную, только синхронизируются с источником. Коммит источника указывается в шапке.
 - Новый публичный экспорт добавляется вместе с TSDoc, строкой в README и в CHANGELOG. До первого выпуска (в CHANGELOG только `[Unreleased]`) достаточно TSDoc и записи в `[Unreleased]`; README обязателен с вехи выпуска.
-- Выпуск — только тег `vX.Y.Z` и CI. Перед тегом нужен зелёный `make test-contract` против текущего `main` Platform (D10). Ручной `npm publish` запрещён, исключение — 1.0.0 (D1).
+- Уровни тестов: во время работы — `make test` и `make test-module M=…` по затронутым файлам; перед `/aif-commit` и слиянием — `make test-full` (слой C — `PLATFORM_DIR=<worktree origin/main Platform>`, `../verdeect-platform` не переключать). `make test-timing` — на тихой машине. На загруженной машине — `TEST_TIMEOUT_SCALE=2..3` локально; тайм-ауты в spec-файлах не поднимать, тест, упавший по тайм-ауту, сначала перезапустить отдельно.
+- У слоя C нет проектов Vitest `shared` / `isolated` («Fast Test Suites» (3)): 4 файла делят один стенд `globalSetup` и идут по очереди (`fileParallelism: false`); время уходит на сборку образа и стенд, а не на импорт модулей; файлы не пишут `process.env`, не используют `vi.mock` / `vi.stubEnv` и не патчат прототипы. Проекты понадобятся, если появятся такие файлы или заметное время импорта.
+- `test/unit/package-manifest.spec.ts` (NFR-4: `dependencies` — только zod, peer optional) — тест требования, читает `package.json` без запуска приложения; остаётся в слое U. Проверок lockfile или `pnpm why` в тестах нет, поэтому `make analyse` — только `tsc --noEmit`.
+- Выпуск — только тег `vX.Y.Z` и CI. Перед тегом нужен зелёный `make test-full` против текущего `main` Platform (D10; `make test-contract` — псевдоним только слоя C). Ручной `npm publish` запрещён, исключение — 1.0.0 (D1).
 - Для `.ts`-файлов используйте скилы `nestjs-specialist` и `nestjs-code` (для компонентов библиотеки — тип `generic`).

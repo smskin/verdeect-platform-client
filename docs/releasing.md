@@ -7,15 +7,16 @@
 ## Выпуск по шагам
 
 1. **`main` зелёный.** Изменения влиты, локально проходит `make ci`.
-2. **`make test-contract` против текущего `main` Platform (D10).** Слой C поднимает в Testcontainers PostgreSQL, RabbitMQ и образ, собранный из `../verdeect-platform`. Нужен Docker.
+2. **`make test-full` против текущего `main` Platform (D10).** `test-full` — `lint`, `analyse`, `test`, `pack-check`, слой C (`test-integration`) и perf (`test-timing`). Слой C поднимает в Testcontainers PostgreSQL, RabbitMQ и образ, собранный из каталога `PLATFORM_DIR` (по умолчанию `../verdeect-platform`). Нужен Docker. Рабочую копию `../verdeect-platform` не переключать — образ собирается из отдельного worktree `origin/main`:
 
    ```bash
-   git -C ../verdeect-platform checkout main
-   git -C ../verdeect-platform pull origin main
-   make test-contract
+   git -C ../verdeect-platform fetch origin
+   git -C ../verdeect-platform worktree add --detach <dir> origin/main
+   make test-full PLATFORM_DIR=<dir>
+   git -C ../verdeect-platform worktree remove <dir>
    ```
 
-   Все тесты зелёные. В выводе есть строка `[contract] Platform: <commit> (build …), dirty: no` — этот коммит (7 знаков) записывается в таблицу «Совместимость» README (NFR-5). Для выпуска не годится прогон с `PLATFORM_IMAGE` без `PLATFORM_COMMIT` (коммит `unknown`) или с `dirty: yes`. Выпускной прогон идёт без `PLATFORM_LIMITS` (`[contract] limits mode: b1`): AC-22 проверяет ключи B.1 в `limits`; `PLATFORM_LIMITS=legacy` — только необязательная проверка совместимости с Platform без дополнения B.1. Чтобы не переключать рабочую копию `../verdeect-platform`, образ можно собрать из отдельного worktree: `git -C ../verdeect-platform worktree add <dir> <commit>`, затем `make test-contract PLATFORM_DIR=<dir>`. Вызов CLI Platform (`member:grant`, `member:revoke`) ограничен 120 с: под нагрузкой хоста старт CLI доходит до ~35 с. На медленной машине предел поднимает `PLATFORM_CLI_TIMEOUT_MS=<мс>` (целое > 0, иначе прогон не стартует); таймауты тестов растут вместе с ним. Сообщение «предел N мс истёк, процесс в контейнере мог доработать» — CLI не уложился в предел, а не обязательно завис. Красный тест слоя C — выпуск останавливается: либо Platform нарушил контракт, либо копию каталога или схемы нужно синхронизировать с источником.
+   `make test-contract` — псевдоним `make test-integration`: только слой C, с теми же переменными. Perf (`test-timing`) — на тихой машине: при load average выше числа ядер цель печатает `[test-timing] WARN`, такой прогон для выпуска повторяют. Все тесты зелёные. В выводе есть строка `[contract] Platform: <commit> (build …), dirty: no` — этот коммит (7 знаков) записывается в таблицу «Совместимость» README (NFR-5). Для выпуска не годится прогон с `PLATFORM_IMAGE` без `PLATFORM_COMMIT` (коммит `unknown`) или с `dirty: yes`. Выпускной прогон идёт без `PLATFORM_LIMITS` (`[contract] limits mode: b1`): AC-22 проверяет ключи B.1 в `limits`; `PLATFORM_LIMITS=legacy` — только необязательная проверка совместимости с Platform без дополнения B.1. Другой коммит Platform — тот же worktree на `<commit>`. Вызов CLI Platform (`member:grant`, `member:revoke`) ограничен 120 с: под нагрузкой хоста старт CLI доходит до ~35 с. На медленной машине предел поднимает `PLATFORM_CLI_TIMEOUT_MS=<мс>` (целое > 0, иначе прогон не стартует); таймауты тестов растут вместе с ним. На загруженной машине тайм-ауты конфигов Vitest умножает `TEST_TIMEOUT_SCALE=2..3` (только локально; в CI — 1). Сообщение «предел N мс истёк, процесс в контейнере мог доработать» — CLI не уложился в предел, а не обязательно завис. Красный тест слоя C — выпуск останавливается: либо Platform нарушил контракт, либо копию каталога или схемы нужно синхронизировать с источником.
 
 3. **Повысить `version`** в `package.json` по semver (см. ниже).
 4. **Дописать раздел версии в `CHANGELOG.md`**: перенести пункты из `## [Unreleased]` в `## [X.Y.Z] - ГГГГ-ММ-ДД` с датой тега. У 1.0.0 раздел уже есть — поправить дату на дату тега. Новый экспорт — строка в `### Added` и в таблице «API» README.
@@ -28,7 +29,7 @@
    git push origin vX.Y.Z
    ```
 
-6. **CI** прогоняет `lint` → `test` (Node 22 и 24) → `build` (`make build pack-check`: `pack:check` — `publint --strict`, `attw --profile esm-only`, проверки упакованного архива) → `publish` (Node 24, npm ≥ 11.15, Trusted Publishing). Job `publish` запускается только на тег `v<major>.<minor>.<patch>` и только после зелёных проверок. Слоя C в CI нет (D10).
+6. **CI** прогоняет `lint` → `test` (Node 22 и 24: `make test`, `make test-timing`) → `build` (Node 22 и 24, `make build pack-check`: `pack:check` — `publint --strict`, `attw --profile esm-only`, проверки упакованного архива) → `publish` (Node 24, npm ≥ 11.15, Trusted Publishing). Job `publish` запускается только на тег `v<major>.<minor>.<patch>` и только после зелёных проверок. Слоя C в CI нет (D10).
 7. **Проверить публикацию:**
 
    ```bash
@@ -92,7 +93,7 @@
 
 Trusted Publisher настраивается только для пакета, который уже есть в npm, поэтому 1.0.0 мейнтейнер публикует вручную, с 2FA и без токенов. Цена: у 1.0.0 нет provenance. Это единственная ручная публикация.
 
-1. Шаги 1–4 выше: `main` зелёный, `make test-contract` против текущего `main` Platform, `version` = `1.0.0`, раздел `[1.0.0]` в CHANGELOG с датой тега.
+1. Шаги 1–4 выше: `main` зелёный, `make test-full` против текущего `main` Platform, `version` = `1.0.0`, раздел `[1.0.0]` в CHANGELOG с датой тега.
 2. Поставить тег **локально**, пока его не пушить:
 
    ```bash
@@ -105,8 +106,7 @@ Trusted Publisher настраивается только для пакета, �
    git clone --branch v1.0.0 "$(pwd)" ../verdeect-platform-client-release
    cd ../verdeect-platform-client-release
    make install
-   make ci
-   make test-contract
+   make test-full
    ```
 
 4. Вход в npm с 2FA и публикация из клона (npm ≥ 11.15 — она же нужна для `npm trust`):
