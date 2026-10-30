@@ -1,7 +1,7 @@
 // Стенд слоя C (prd.md §7 п. 1–5, п. 9, §10 п. 3, D10): PostgreSQL и RabbitMQ в сети Testcontainers,
 // exchange verdeect.events от теста, тестовый издатель через exposeHostPorts, разовые db:prepare → migrate →
 // plan:apply и сервис Platform; при сбое — ошибка с выводом упавшего контейнера.
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { Readable } from 'node:stream';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { createTestSigner } from '@verdeect/auth/testing';
@@ -14,6 +14,7 @@ import {
     type StartedNetwork,
 } from 'testcontainers';
 import { runProcess, tail, TAIL_LINES, type PlatformImage } from './platform-image.js';
+import { readyTimeoutMs } from './ready-timeout.js';
 
 const POSTGRES_IMAGE = 'postgres:17.11-alpine3.24';
 const RABBITMQ_IMAGE = 'rabbitmq:4.3.6-management-alpine';
@@ -23,9 +24,19 @@ const TEST_ISS = 'https://test-identity.verdeect.invalid';
 const RESOURCE = 'https://api.verdeect.ru';
 /** Сервис-потребитель пакета в токенах слоя C (§7 п. 8). */
 const SERVICE_CLIENT_ID = 'verdeect-files';
-const READY_TIMEOUT_MS = 120_000;
-/** Предел одного запроса GET /ok: зависший запрос не переживает дедлайн готовности. */
-const PROBE_TIMEOUT_MS = 2_000;
+/** Старт контейнера RabbitMQ (ожидание строки лога). */
+const CONTAINER_STARTUP_TIMEOUT_MS = 120_000;
+/** Порт /health и /metrics Platform (METRICS_PORT, отдельный сервер HTTP-входа). */
+const METRICS_PORT = 9100;
+/** Шаг опроса готовности. */
+const READY_STEP_MS = 500;
+/**
+ * Предел одного запроса GET /health: пробы Platform ограничены 2 с (PROBE_TIMEOUT_MS Platform),
+ * зависший запрос не переживает дедлайн готовности.
+ */
+const PROBE_TIMEOUT_MS = 5_000;
+/** Предел прогревочного POST /v1/authz/permissions: первый запрос загружает JWKS издателя и пулы БД. */
+const WARMUP_TIMEOUT_MS = 30_000;
 const ONE_SHOT_TIMEOUT_MS = 120_000;
 const TOKEN_LIFETIME_SEC = 3600;
 
@@ -168,23 +179,65 @@ async function platformQueueConsumers(amqpUrl: string): Promise<string> {
     });
 }
 
-async function waitReady(platformUrl: string, amqpUrl: string): Promise<void> {
-    const deadline = Date.now() + READY_TIMEOUT_MS;
+/**
+ * Готовность: GET /health Platform → 200 (FR-13: `select 1` в обоих пулах БД; 503, пока БД недоступна)
+ * и подписчик очереди platform. Опрос раз в 500 мс до предела; итог — время ожидания и число опросов.
+ */
+async function waitReady(
+    healthUrl: string,
+    amqpUrl: string,
+    timeoutMs: number,
+): Promise<{ readonly elapsedMs: number; readonly polls: number }> {
+    const startedAt = Date.now();
+    const deadline = startedAt + timeoutMs;
     let state = 'не опрошен';
+    let polls = 0;
     while (Date.now() < deadline) {
-        const ok = await fetch(`${platformUrl}/ok`, {
+        polls += 1;
+        const health = await fetch(healthUrl, {
             signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
         }).then(
             (response) => response.status,
             () => 0,
         );
-        state = ok === 200 ? await platformQueueConsumers(amqpUrl) : `GET /ok → ${ok}`;
+        state = health === 200 ? await platformQueueConsumers(amqpUrl) : `GET /health → ${health}`;
         if (state === 'ready') {
-            return;
+            return { elapsedMs: Date.now() - startedAt, polls };
         }
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, READY_STEP_MS));
     }
-    throw new Error(`сервис не готов за ${READY_TIMEOUT_MS / 1000} с: ${state}`);
+    throw new Error(
+        `сервис не готов за ${timeoutMs} мс (PLATFORM_READY_TIMEOUT_MS), опросов ${polls}: ${state}`,
+    );
+}
+
+/**
+ * Прогрев: один POST /v1/authz/permissions с сервисным токеном до тестов — первый запрос к холодному
+ * сервису (JWKS издателя, пулы БД) не попадает в проверки AC-15 (C). Результат не проверяется, сбой — warn.
+ */
+async function warmUp(platformUrl: string, token: string): Promise<void> {
+    const startedAt = Date.now();
+    try {
+        const response = await fetch(`${platformUrl}/v1/authz/permissions`, {
+            method: 'POST',
+            headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+            body: JSON.stringify({
+                sub: 'contract-warmup',
+                tenant: 'contract-warmup',
+                tenantId: randomUUID(),
+                act: 'human',
+            }),
+            signal: AbortSignal.timeout(WARMUP_TIMEOUT_MS),
+        });
+        await response.text();
+        console.info(
+            `[contract] п. 5: прогрев POST /v1/authz/permissions → ${response.status} за ${Date.now() - startedAt} мс`,
+        );
+    } catch (error) {
+        console.warn(
+            `[contract] WARN прогрев POST /v1/authz/permissions за ${Date.now() - startedAt} мс: ${error instanceof Error ? error.message : String(error)}`,
+        );
+    }
 }
 
 /** Остановка без падения: ошибки — warn. */
@@ -234,7 +287,7 @@ export async function startPlatformStand(platform: PlatformImage): Promise<Platf
                         })
                         .withExposedPorts(5672)
                         .withWaitStrategy(Wait.forLogMessage(/Server startup complete/))
-                        .withStartupTimeout(READY_TIMEOUT_MS)
+                        .withStartupTimeout(CONTAINER_STARTUP_TIMEOUT_MS)
                         .withLogConsumer(rabbitLogs.consume)
                         .start(),
                 ]),
@@ -320,7 +373,9 @@ export async function startPlatformStand(platform: PlatformImage): Promise<Platf
             ]),
         );
 
-        // Шаг 5: сервис; готовность — GET /ok и подписчик очереди platform.
+        // Шаг 5: сервис; старт — GET /ok (живость), готовность — GET /health, подписчик очереди platform
+        // и прогревочный запрос permissions.
+        const timeoutMs = readyTimeoutMs();
         const serviceLogs = new LogBuffer();
         const service = await step(
             'п. 5: сервис Platform',
@@ -328,21 +383,26 @@ export async function startPlatformStand(platform: PlatformImage): Promise<Platf
                 new GenericContainer(platform.image)
                     .withNetwork(startedNetwork)
                     .withNetworkAliases('platform')
-                    .withEnvironment(serviceEnv)
-                    .withExposedPorts(3000)
+                    .withEnvironment({ ...serviceEnv, METRICS_PORT: String(METRICS_PORT) })
+                    .withExposedPorts(3000, METRICS_PORT)
                     .withWaitStrategy(Wait.forHttp('/ok', 3000).forStatusCode(200))
-                    .withStartupTimeout(READY_TIMEOUT_MS)
+                    .withStartupTimeout(timeoutMs)
                     .withLogConsumer(serviceLogs.consume)
                     .start(),
             () => serviceLogs.text(),
         );
         started.push({ name: 'platform', stop: () => service.stop() });
         const platformUrl = `http://${service.getHost()}:${service.getMappedPort(3000)}`;
-        await step(
-            `п. 5: готовность ${platformUrl} (GET /ok и подписчик очереди ${PLATFORM_QUEUE})`,
-            () => waitReady(platformUrl, amqpUrl),
+        const healthUrl = `http://${service.getHost()}:${service.getMappedPort(METRICS_PORT)}/health`;
+        const ready = await step(
+            `п. 5: готовность ${healthUrl} (GET /health → 200 и подписчик очереди ${PLATFORM_QUEUE}, предел ${timeoutMs} мс)`,
+            () => waitReady(healthUrl, amqpUrl, timeoutMs),
             () => serviceLogs.text(),
         );
+        console.info(
+            `[contract] п. 5: готовность за ${ready.elapsedMs} мс (опросов ${ready.polls})`,
+        );
+        await warmUp(platformUrl, authzToken);
 
         return {
             platformUrl,

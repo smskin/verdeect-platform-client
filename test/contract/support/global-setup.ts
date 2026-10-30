@@ -4,6 +4,7 @@ import type { TestProject } from 'vitest/node';
 import { cliTimeoutMs } from './platform-cli.js';
 import { resolvePlatformImage, type PlatformImage } from './platform-image.js';
 import { startPlatformStand } from './platform-stand.js';
+import { readyTimeoutMs } from './ready-timeout.js';
 
 function report(image: PlatformImage): string {
     const dirty = image.dirty === 'unknown' ? 'unknown' : image.dirty ? 'yes' : 'no';
@@ -12,12 +13,15 @@ function report(image: PlatformImage): string {
 }
 
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
+    // Значение уже проверено в vitest.contract.config.ts.
+    const readyMs = readyTimeoutMs();
     const image = await resolvePlatformImage();
     console.info(report(image));
     console.info(
         `[contract] limits mode: ${process.env.PLATFORM_LIMITS === 'legacy' ? 'legacy' : 'b1'}`,
     );
     console.info(`[contract] предел CLI: ${cliTimeoutMs()} мс`);
+    console.info(`[contract] предел готовности Platform: ${readyMs} мс`);
     const stand = await startPlatformStand(image);
 
     project.provide('platformUrl', stand.platformUrl);

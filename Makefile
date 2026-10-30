@@ -37,7 +37,9 @@ PLATFORM_DIR ?= ../verdeect-platform
 PLATFORM_LIMITS ?=
 # Слой C: предел одного вызова CLI Platform, мс (целое > 0); пусто — 120000.
 PLATFORM_CLI_TIMEOUT_MS ?=
-export TEST_TIMEOUT_SCALE PLATFORM_IMAGE PLATFORM_COMMIT PLATFORM_DIR PLATFORM_LIMITS PLATFORM_CLI_TIMEOUT_MS
+# Слой C: предел готовности сервиса Platform (старт и GET /health), мс (целое > 0); пусто — 120000.
+PLATFORM_READY_TIMEOUT_MS ?=
+export TEST_TIMEOUT_SCALE PLATFORM_IMAGE PLATFORM_COMMIT PLATFORM_DIR PLATFORM_LIMITS PLATFORM_CLI_TIMEOUT_MS PLATFORM_READY_TIMEOUT_MS
 
 .DEFAULT_GOAL := help
 
@@ -108,7 +110,7 @@ test-timing: ## perf AC-17 (--expose-gc) — только на тихой маш
 	$(PNPM) test:perf
 
 .PHONY: test-integration
-test-integration: ## Слой C против настоящего Platform в Testcontainers (локально, не в ci; PLATFORM_DIR, PLATFORM_IMAGE, PLATFORM_COMMIT, PLATFORM_LIMITS, PLATFORM_CLI_TIMEOUT_MS)
+test-integration: ## Слой C против настоящего Platform в Testcontainers (локально, не в ci; PLATFORM_DIR, PLATFORM_IMAGE, PLATFORM_COMMIT, PLATFORM_LIMITS, PLATFORM_CLI_TIMEOUT_MS, PLATFORM_READY_TIMEOUT_MS)
 	$(PNPM) test:contract
 
 .PHONY: test-contract
