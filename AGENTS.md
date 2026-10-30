@@ -64,10 +64,11 @@ verdeect-platform-client/
 │   │   └── support/
 │   │       ├── global-setup.ts        # globalSetup: образ → стенд → provide; отчёт «[contract] Platform: <commit>»
 │   │       ├── platform-image.ts      # docker build ../verdeect-platform или PLATFORM_IMAGE; коммит, dirty
-│   │       ├── platform-stand.ts      # §7 п. 1–5, 9: сеть, PostgreSQL, RabbitMQ, издатель, db:prepare → migrate → plan:apply, сервис
+│   │       ├── platform-stand.ts      # §7 п. 1–5, 9: сеть, PostgreSQL, RabbitMQ, издатель, db:prepare → migrate → plan:apply, сервис; готовность GET /health (PLATFORM_READY_TIMEOUT_MS) и прогрев permissions
 │   │       ├── identity-events.ts     # построители конвертов identity.*, проверка ajv по копиям схем
 │   │       ├── broker.ts              # очередь теста platform.policy.changed (ajv + zod), публикация identity.*
 │   │       ├── platform-cli.ts        # member:grant/revoke через docker exec, хвост docker logs
+│   │       ├── ready-timeout.ts       # PLATFORM_READY_TIMEOUT_MS — предел готовности Platform (проверка и в vitest.contract.config.ts)
 │   │       └── contract-client.ts     # клиент пакета с записью вызовов, waitFor 5 с, prepareMember
 │   ├── package/                  # проверки архива: consumer.spec.ts (AC-12, AC-16), release.spec.ts (AC-16, NFR-6, D10), docs.spec.ts (§4, NFR-5, D1)
 │   │   └── support/              # pack.ts (runCommand с env), consumer-project.ts
@@ -104,7 +105,7 @@ make test            # слой U (test/unit) без perf; make test FILTER='AC-
 make test-module     # слой U по файлам: make test-module M='cache decide' (подстроки test/unit/<m>; без M — весь слой U)
 make test-timing     # perf AC-17 (--expose-gc), только на тихой машине; при load > ядер — [test-timing] WARN
 make build           # dist/ (.js + .d.ts)
-make test-integration # слой C в Testcontainers (локально, не в ci); PLATFORM_IMAGE=<ref> PLATFORM_COMMIT=<sha>; PLATFORM_DIR=<worktree>; PLATFORM_LIMITS=legacy — Platform без B.1; PLATFORM_CLI_TIMEOUT_MS=<мс> — предел вызова CLI (120000)
+make test-integration # слой C в Testcontainers (локально, не в ci); PLATFORM_IMAGE=<ref> PLATFORM_COMMIT=<sha>; PLATFORM_DIR=<worktree>; PLATFORM_LIMITS=legacy — Platform без B.1; PLATFORM_CLI_TIMEOUT_MS=<мс> — предел вызова CLI (120000); PLATFORM_READY_TIMEOUT_MS=<мс> — предел готовности Platform: старт и GET /health (120000)
 make test-contract   # псевдоним test-integration (docs/releasing.md, D10)
 make test-load       # нагрузочного набора нет — сообщение и код 0
 make test-full       # перед /aif-commit, слиянием и тегом: lint analyse test pack-check test-integration test-timing (те же PLATFORM_*)

@@ -9,6 +9,8 @@ import {
     type PlatformAuthzClient,
     type Subject,
 } from '../../../src/core/index.js';
+import { DEFAULT_REQUEST_TIMEOUT_MS } from '../../../src/core/options.js';
+import { timeoutScale } from '../../support/timeout-scale.js';
 import type { ContractBroker } from './broker.js';
 import { accountCreated, membershipAdded, organizationCreated } from './identity-events.js';
 import { serviceLogsTail } from './platform-cli.js';
@@ -16,6 +18,11 @@ import { serviceLogsTail } from './platform-cli.js';
 /** Предел ожидания результата (§7 п. 7). */
 const WAIT_TIMEOUT_MS = 5_000;
 const WAIT_STEP_MS = 100;
+/**
+ * Предел HTTP-запроса клиента: значение пакета по умолчанию (2 с) × TEST_TIMEOUT_SCALE — на загруженной
+ * машине поднимается только локально (слой C в CI не запускается); при 1 — как у потребителя.
+ */
+const REQUEST_TIMEOUT_MS = Math.round(DEFAULT_REQUEST_TIMEOUT_MS * timeoutScale());
 /** Суффикс прогона в slug компаний: файлы и прогоны не мешают друг другу. */
 const RUN_SUFFIX = randomBytes(4).toString('hex');
 
@@ -56,6 +63,7 @@ export function createContractClient(
 
     const client = createPlatformAuthzClient({
         baseUrl: inject('platformUrl'),
+        requestTimeoutMs: REQUEST_TIMEOUT_MS,
         // Токен издателя из globalSetup на 1 ч; refresh отдаёт тот же (решение плана, 401 — слой U).
         tokenProvider: {
             getToken: (options) => {
