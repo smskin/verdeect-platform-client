@@ -1,7 +1,7 @@
 # Project Rules for /aif-build-automation
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-10-30
+> Last updated: 2026-11-01
 > Based on: reference project Makefile (Laravel + Docker) + NestJS service layout + manual rules
 
 ## Rules
@@ -48,6 +48,14 @@
 - `test-load` — load / p95 specs in their own config, never part of `ci` by default.
 - `test-full` — `test` + `test-integration` + `test-timing`: the pre-merge gate.
 `TEST_TIMEOUT_SCALE` (default 1, set manually, never derived from the load automatically) multiplies the config-level test and hook timeouts of the test runner and of Playwright; CI always uses 1. `docs/development.md` has a table "level → when to run → approximate time", and the root agent rules file (`CLAUDE.md` or `AGENTS.md`) states: while working — `test` and `test-module` for the touched modules; before `/aif-commit` and merge — `test-full`; Playwright — the whole `test-browser` before merge when pages or interactions changed, otherwise only the affected specs. Regeneration or audit of the Makefile must not drop these targets.
+
+### Browser Tests in a Container
+**Source**: manual, 2026-11-01 (verdeect-identity, ID-23–ID-24: full Playwright run never green on the host because of net::ERR_NETWORK_CHANGED; in a container 199/199)
+**Rule**: `make test-browser [SPEC=…]` runs Playwright inside the pinned image `mcr.microsoft.com/playwright:v<@playwright/test version>-noble`, kept in one Makefile variable `PLAYWRIGHT_IMAGE` shared with `test-visual`. Reason: on a developer machine other sessions and Testcontainers create and remove Docker networks all the time; Chromium on the host treats every new interface as a network change and aborts navigations with `net::ERR_NETWORK_CHANGED`. Inside a container the browser sees only its own interface.
+- Network: the container joins the network of the e2e contour (`<project>-e2e-*`), never `--network host`. The browser keeps using the same origins as on the host (e.g. `https://localhost:<e2e port>`, mail catcher on its host port) — the test setup forwards these host ports inside the container to the contour services (`<service>:<port>`) and closes the forwarding in global teardown whatever the outcome — so issuer, cookies and redirect URIs stay unchanged.
+- Dependencies: the repository is mounted; reuse host `node_modules` when the `@playwright/test` version equals the image version (no second install over the mount). Reports (`playwright-report/`, `test-results/`, junit) are written into the mounted repository as the host user (`--user $(id -u):$(id -g)`). `TEST_TIMEOUT_SCALE`, `CI` and video flags are passed through.
+- `test-browser` keeps its contract: build + `e2e-reset` once, then the run. A separate target `test-browser-host [SPEC=…]` runs on the host against the already running contour (no build, no reset) — only for debugging with `--ui`/headed; it is never a gate.
+- Applies to every stack with browser tests (Laravel + Vue, NestJS + React, standalone SPA). Regeneration or audit of the Makefile must not move `test-browser` back to the host.
 
 ### Visual Regression Target
 **Source**: manual, 2026-10-21

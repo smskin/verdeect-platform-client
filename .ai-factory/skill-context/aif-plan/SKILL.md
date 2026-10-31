@@ -1,7 +1,7 @@
 # Project Rules for /aif-plan
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-10-30
+> Last updated: 2026-11-01
 > Based on: 94 analyzed patches + 16 aif-improve fix logs + manual rules
 
 ## Rules
@@ -79,6 +79,10 @@
 (4) Timing-sensitive and load specs live in their own configs and Makefile targets (see the aif-build-automation rule "Test Levels"), never in `test-integration`.
 (5) Dependency and version policies (e.g. "no global undici dispatcher ≥ 7 in production dependencies") are static checks in `make analyse` (lockfile / `pnpm why --prod`), not unit tests that boot the application; a runtime assertion, if needed, goes into an existing http spec that already boots it.
 (6) Fake timers where elapsed time is not the subject of the test (code expiry, session windows — or shift timestamps in the database); real waits only where the behaviour of a real driver is tested (broker reconnect, connection timeouts, graceful shutdown).
+
+### Browser Tests in a Container
+**Source**: manual, 2026-11-01 (verdeect-identity, ID-24)
+**Rule**: The "E2E infrastructure" phase (and any plan that creates or audits the e2e contour) runs Playwright inside the pinned Playwright image on the e2e contour network, as defined by the aif-build-automation rule of the same name: `PLAYWRIGHT_IMAGE` shared with `test-visual`, host origins forwarded inside the container to the contour services (closed in global teardown), reports written as the host user, `test-browser-host` only for debugging. A task that runs browser tests directly on the host as the gate, or with `--network host`, contradicts this rule. The plan's verification task runs the full `make test-browser` in the container; `ERR_NETWORK_CHANGED` in a run means the run was on the host.
 
 ### Browser Tests Without a Vue Stack
 **Source**: manual, 2026-10-15

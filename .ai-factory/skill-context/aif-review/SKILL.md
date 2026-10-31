@@ -1,7 +1,7 @@
 # Project Rules for /aif-review
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-10-30
+> Last updated: 2026-11-01
 > Based on: manual rules
 
 ## Rules
@@ -21,6 +21,10 @@
 ### Test Speed Regressions
 **Source**: manual, 2026-10-30 (verdeect-identity)
 **Rule**: Treat as blocking: timeouts raised inside spec files instead of fixing the cause; a file moved to the `isolated` project without a stated reason, or a file that writes env / mocks modules / patches prototypes left in `shared`; timing or load specs added to `test-integration`; a unit spec that imports the whole application module; production compose or `.env.example` setting the test hashing cost; real waits (`sleep`, polling) where elapsed time is not the subject of the test. Non-blocking (minor): new integration files without cleanup in `afterAll`.
+
+### Browser Tests in a Container
+**Source**: manual, 2026-11-01 (verdeect-identity, ID-24)
+**Rule**: Treat as blocking: `test-browser` moved back to the host or switched to `--network host`; a separate Playwright image version for e2e and visual runs; host-port forwarding inside the test container without teardown on failure; test-only helpers (API sign-in, `Sec-Fetch-Site` headers, time-shifting fixtures) reachable without `E2E_TESTING_ROUTES` or writing tokens to logs.
 
 ### Visual Regression Against Mockups
 **Source**: manual, 2026-10-21

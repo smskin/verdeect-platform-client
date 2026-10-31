@@ -1,7 +1,7 @@
 # Project Rules for /aif-verify
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-10-30
+> Last updated: 2026-11-01
 > Based on: manual rules
 
 ## Rules
@@ -37,6 +37,10 @@
 ### Test Levels in Verification
 **Source**: manual, 2026-10-30 (verdeect-identity)
 **Rule**: The test gate is `make test-full` (or `test` + `test-integration` + `test-timing` when the target is missing — WARN `[test-levels] missing targets`), plus `test-browser` / `test-visual` per the other rules. `test-timing` needs a quiet machine: when load average ≥ 8 (or above the number of cores), report it as DEFERRED with the measured value instead of FAIL, and list it under open items. A test that fails by timeout under load and passes when re-run alone is reported as FLAKY-UNDER-LOAD with file, test and duration — never silently dropped. In `--strict` it is FAIL if a file that writes env, mocks modules or patches prototypes runs in the `shared` (non-isolated) project, or if the hashing cost of the test configuration leaks into production compose / `.env.example`.
+
+### Browser Tests in a Container
+**Source**: manual, 2026-11-01 (verdeect-identity, ID-24)
+**Rule**: The browser-test gate is `make test-browser` running in the pinned Playwright image (aif-build-automation rule of the same name); a host run (`test-browser-host`, `npx playwright test`) does not count as the gate. Report total / passed / failed per Playwright project and the number of `net::ERR_NETWORK_CHANGED` failures — expected 0; a non-zero count means the run was not isolated: FAIL in `--strict` until rerun in the container. In `--strict` it is also FAIL if `test-browser` runs on the host or with `--network host`, or if `PLAYWRIGHT_IMAGE` differs between `test-browser` and `test-visual`.
 
 ### Browser Tests Without a Vue Stack
 **Source**: manual, 2026-10-15
