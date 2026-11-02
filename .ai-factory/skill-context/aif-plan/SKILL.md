@@ -1,7 +1,7 @@
 # Project Rules for /aif-plan
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-11-01
+> Last updated: 2026-11-02
 > Based on: 94 analyzed patches + 16 aif-improve fix logs + manual rules
 
 ## Rules
@@ -83,6 +83,10 @@
 ### Browser Tests in a Container
 **Source**: manual, 2026-11-01 (verdeect-identity, ID-24)
 **Rule**: The "E2E infrastructure" phase (and any plan that creates or audits the e2e contour) runs Playwright inside the pinned Playwright image on the e2e contour network, as defined by the aif-build-automation rule of the same name: `PLAYWRIGHT_IMAGE` shared with `test-visual`, host origins forwarded inside the container to the contour services (closed in global teardown), reports written as the host user, `test-browser-host` only for debugging. A task that runs browser tests directly on the host as the gate, or with `--network host`, contradicts this rule. The plan's verification task runs the full `make test-browser` in the container; `ERR_NETWORK_CHANGED` in a run means the run was on the host.
+
+### Deterministic Test Data Order
+**Source**: manual, 2026-11-02 (verdeect-identity ID-31, ID-34)
+**Rule**: Tests never depend on an order the environment may change. (1) Database: an assertion on rows or aggregates ordered by a text column uses `collate "C"` (`order by email collate "C"`, `array_agg(slug order by slug collate "C")`) or sorts in the test with an explicit comparator; `order by 1 collate "C"` is wrong (the collation applies to the constant) — order by the expression itself. Application code keeps the database collation for user-visible lists unless the PRD fixes the order. (2) Mail catcher: messages are ordered by parsed time (`Date.parse(created)`), never by comparing timestamp strings — mailpit drops trailing zeros of fractional seconds (`.74Z` sorts after `.745Z`); when one test sends several mails, give each case its own recipient instead of picking "the second mail". (3) The test setup uses the same service images as CI and compose (aif-build-automation rule "Test Images Pinned and Identical Everywhere"); plans that add a service to tests add it to the image-equality test.
 
 ### Browser Tests Without a Vue Stack
 **Source**: manual, 2026-10-15

@@ -1,7 +1,7 @@
 # Project Rules for /aif-verify
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-11-01
+> Last updated: 2026-11-02
 > Based on: manual rules
 
 ## Rules
@@ -41,6 +41,10 @@
 ### Browser Tests in a Container
 **Source**: manual, 2026-11-01 (verdeect-identity, ID-24)
 **Rule**: The browser-test gate is `make test-browser` running in the pinned Playwright image (aif-build-automation rule of the same name); a host run (`test-browser-host`, `npx playwright test`) does not count as the gate. Report total / passed / failed per Playwright project and the number of `net::ERR_NETWORK_CHANGED` failures — expected 0; a non-zero count means the run was not isolated: FAIL in `--strict` until rerun in the container. In `--strict` it is also FAIL if `test-browser` runs on the host or with `--network host`, or if `PLAYWRIGHT_IMAGE` differs between `test-browser` and `test-visual`.
+
+### Test Images and Order Determinism
+**Source**: manual, 2026-11-02 (verdeect-identity ID-31, ID-33, ID-34)
+**Rule**: In `--strict` it is FAIL if `PLAYWRIGHT_IMAGE` (Makefile and CI) is not pinned by manifest digest or differs between them, if the unit test comparing service image tags across the test setup, CI and compose is missing or red, or if the plan added a service to tests without adding it to that test. Report the pinned Playwright digest and the Node version inside it.
 
 ### Browser Tests Without a Vue Stack
 **Source**: manual, 2026-10-15

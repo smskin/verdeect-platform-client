@@ -1,7 +1,7 @@
 # Project Rules for /aif-build-automation
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-11-01
+> Last updated: 2026-11-02
 > Based on: reference project Makefile (Laravel + Docker) + NestJS service layout + manual rules
 
 ## Rules
@@ -56,6 +56,10 @@
 - Dependencies: the repository is mounted; reuse host `node_modules` when the `@playwright/test` version equals the image version (no second install over the mount). Reports (`playwright-report/`, `test-results/`, junit) are written into the mounted repository as the host user (`--user $(id -u):$(id -g)`). `TEST_TIMEOUT_SCALE`, `CI` and video flags are passed through.
 - `test-browser` keeps its contract: build + `e2e-reset` once, then the run. A separate target `test-browser-host [SPEC=…]` runs on the host against the already running contour (no build, no reset) — only for debugging with `--ui`/headed; it is never a gate.
 - Applies to every stack with browser tests (Laravel + Vue, NestJS + React, standalone SPA). Regeneration or audit of the Makefile must not move `test-browser` back to the host.
+
+### Test Images Pinned and Identical Everywhere
+**Source**: manual, 2026-11-02 (verdeect-identity ID-31, ID-33; verdeect-bff BFF-33–BFF-36)
+**Rule**: (1) Images whose output the tests compare byte for byte or render (Playwright for `test-browser` and `test-visual`) are pinned by manifest digest: `PLAYWRIGHT_IMAGE := mcr.microsoft.com/playwright:v<version>-noble@sha256:<digest>`, one variable used by every target and by CI. The digest is the registry manifest (OCI index) digest from `docker buildx imagetools inspect <image:tag>` or `docker inspect --format '{{json .RepoDigests}}'` — never the local image ID (`docker images`, `.Id`); check with `docker pull` of the full reference on a clean daemon. Reason: a tag can be republished with different content (on 2026-11-01 `v1.64.1-noble` moved from Node 24 to Node 26 without corepack), and local and CI runs silently diverge. A new digest is a deliberate change, together with a full `test-visual` run. (2) Service images used by tests — PostgreSQL, Redis, RabbitMQ, mail catcher — have the same tag in the test setup (Testcontainers / global setup constants), in CI `services` (via `*_IMAGE` variables) and in `compose.override.yml`. A unit test (no containers, part of `make test`) imports the constants and compares them with the CI file and the compose file, naming the file and both tags on mismatch. Reason: `postgres:16` (Debian, locale collation) locally against `postgres:16-alpine` (byte order) in CI made text-ordered assertions pass locally and fail in CI. (3) Do not rely on `corepack` inside third-party images (absent since Node 25): install the package manager with `npm install -g <pm>@<version from packageManager>`.
 
 ### Visual Regression Target
 **Source**: manual, 2026-10-21

@@ -1,7 +1,7 @@
 # Project Rules for /aif-review
 
 > Bundle: aif-prompts 2026-10-13 (portable baseline; /aif-evolve may extend it).
-> Last updated: 2026-11-01
+> Last updated: 2026-11-02
 > Based on: manual rules
 
 ## Rules
@@ -25,6 +25,10 @@
 ### Browser Tests in a Container
 **Source**: manual, 2026-11-01 (verdeect-identity, ID-24)
 **Rule**: Treat as blocking: `test-browser` moved back to the host or switched to `--network host`; a separate Playwright image version for e2e and visual runs; host-port forwarding inside the test container without teardown on failure; test-only helpers (API sign-in, `Sec-Fetch-Site` headers, time-shifting fixtures) reachable without `E2E_TESTING_ROUTES` or writing tokens to logs.
+
+### Test Images and Order Determinism
+**Source**: manual, 2026-11-02 (verdeect-identity ID-31, ID-33, ID-34)
+**Rule**: Treat as blocking: a Playwright image referenced by tag without `@sha256:` digest, or a digest that is a local image ID; a test service image whose tag differs between the test setup, CI and compose, or a new service missing from the image-equality test; `corepack` relied on inside third-party CI images; an assertion on text-ordered database rows without `collate "C"` or an explicit sort; mail ordering by timestamp strings or "the n-th mail" of one recipient where several cases share it.
 
 ### Visual Regression Against Mockups
 **Source**: manual, 2026-10-21
