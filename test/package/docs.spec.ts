@@ -117,6 +117,8 @@ describe('§4: документация пакета', () => {
         }
         // 1.1.0 против Platform до B.1: в limits только fileSizeMb.
         expect(compatibility).toMatch(/1\.1\.0 — Platform ≥ `[0-9a-f]{7,40}`/);
+        // 1.1.1: тексты ACCOUNT_DISABLED и CONTEXT_REVOKED — Platform v1.20.
+        expect(compatibility).toMatch(/1\.1\.1 — Platform ≥ `10b757b`/);
     });
 
     it('§4 / AGENTS.md: каждое имя, экспортированное src/core/index.ts, src/nest/index.ts и src/testing/index.ts, есть в разделе README «API»', async () => {

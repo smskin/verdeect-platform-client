@@ -99,7 +99,10 @@ describe('UC-4: тест потребителя на подделке Platform',
         fake.client.onPolicyChanged(fake.policyChanged(TENANT_ID, [SUB]));
         expect(await app.call('/p/one', await t.agent({ pep: 7, sub: SUB }))).toStrictEqual({
             status: 403,
-            body: errorBody('CONTEXT_REVOKED', 'Контекст отозван. Нужен новый диалог.'),
+            body: errorBody(
+                'CONTEXT_REVOKED',
+                'Разговор закрыт: изменились настройки или доступы. Начните новый разговор.',
+            ),
         });
     });
 

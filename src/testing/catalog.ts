@@ -1,4 +1,4 @@
-// Копия verdeect-platform apps/platform/src/modules/catalog/domain/permissions.ts и apps/platform/src/modules/catalog/domain/modules.ts @ 513886e (prd.md §5.5, AC-8a).
+// Копия verdeect-platform apps/platform/src/modules/catalog/domain/permissions.ts и apps/platform/src/modules/catalog/domain/modules.ts @ 10b757b (prd.md §5.5, AC-8a).
 // Не править вручную: только перекопировать из источника и обновить коммит в этой строке.
 /** Права компании (prd.md §5.1); порядок — как в PRD. Право вне списка — ошибка вызывающего `UNKNOWN_PERMISSION`. */
 export const PERMISSION_KEYS = [
@@ -90,13 +90,18 @@ export const MODULE_CATALOG: readonly ModuleDefinition[] = [
     },
     {
         id: 'knowledge',
-        title: 'Поиск по файлам',
+        title: 'База знаний',
         permissions: ['knowledge.read', 'knowledge.manage'],
         dependsOn: ['files'],
     },
-    { id: 'web', title: 'Интернет и браузер', permissions: ['chat.web'], dependsOn: [] },
-    { id: 'office', title: 'Офисные документы', permissions: ['chat.office'], dependsOn: [] },
-    { id: 'images', title: 'Изображения', permissions: ['chat.images'], dependsOn: [] },
+    { id: 'web', title: 'Интернет и браузер помощника', permissions: ['chat.web'], dependsOn: [] },
+    {
+        id: 'office',
+        title: 'Офисные документы помощника',
+        permissions: ['chat.office'],
+        dependsOn: [],
+    },
+    { id: 'images', title: 'Изображения помощника', permissions: ['chat.images'], dependsOn: [] },
     { id: 'kanban', title: 'Канбан', permissions: ['kanban.use'], dependsOn: [] },
     { id: 'calendar', title: 'Календарь', permissions: ['calendar.use'], dependsOn: [] },
     { id: 'workers', title: 'Нейросотрудники', permissions: [], dependsOn: [] },

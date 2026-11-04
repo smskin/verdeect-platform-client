@@ -16,9 +16,10 @@ describe('AC-11: коды и тексты §3.4', () => {
         expect(DECISION_MESSAGES).toStrictEqual({
             NOT_MEMBER: 'Нет доступа к компании.',
             COMPANY_SUSPENDED: 'Компания приостановлена.',
-            ACCOUNT_DISABLED: 'Учётная запись заблокирована.',
+            ACCOUNT_DISABLED: 'Учётная запись заблокирована. Обратитесь к администратору.',
             SEATS_EXCEEDED: 'Превышено число мест по тарифу. Обратитесь к администратору.',
-            CONTEXT_REVOKED: 'Контекст отозван. Нужен новый диалог.',
+            CONTEXT_REVOKED:
+                'Разговор закрыт: изменились настройки или доступы. Начните новый разговор.',
             FORBIDDEN: 'Недостаточно прав.',
             PLAN_MODULE: 'Возможность не входит в тариф компании.',
             MODULE_DISABLED: 'Раздел отключён. Данные сохранены.',
@@ -40,7 +41,7 @@ describe('AC-11: коды и тексты §3.4', () => {
     it('AC-11: шапка копии содержит путь источника и коммит', () => {
         const [header = ''] = COPY.split('\n');
         expect(header).toContain('apps/platform/src/modules/catalog/domain/decision-codes.ts');
-        expect(header).toContain('@ 513886e');
+        expect(header).toContain('@ 10b757b');
     });
 
     it.runIf(existsSync(PLATFORM_GIT))(
