@@ -1,4 +1,4 @@
-// Копия verdeect-platform apps/platform/src/modules/catalog/domain/limits.ts @ 513886e (prd.md §3.2, AC-20).
+// Копия verdeect-platform apps/platform/src/modules/catalog/domain/limits.ts @ 10b757b (prd.md §3.2, AC-20).
 // Не править вручную: только перекопировать из источника и обновить коммит в этой строке.
 import { z } from 'zod';
 

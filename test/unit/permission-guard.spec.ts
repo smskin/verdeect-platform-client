@@ -178,7 +178,7 @@ describe('AC-10: PermissionGuard — порядок, тексты, агент', 
         ]);
     });
 
-    it('AC-10 / UC-2: agent с pep < epoch → 403 CONTEXT_REVOKED «Контекст отозван. Нужен новый диалог.»', async () => {
+    it('AC-10 / UC-2: agent с pep < epoch → 403 CONTEXT_REVOKED «Разговор закрыт: изменились настройки или доступы. Начните новый разговор.»', async () => {
         const { app } = await setup('none');
         const result = await app.call('/p/one', await t.agent({ pep: 5 }));
         expect(result).toStrictEqual({
@@ -186,7 +186,8 @@ describe('AC-10: PermissionGuard — порядок, тексты, агент', 
             body: {
                 error: {
                     code: 'CONTEXT_REVOKED',
-                    message: 'Контекст отозван. Нужен новый диалог.',
+                    message:
+                        'Разговор закрыт: изменились настройки или доступы. Начните новый разговор.',
                     details: {},
                 },
             },

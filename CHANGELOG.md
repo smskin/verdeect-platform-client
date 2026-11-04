@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-04
+
+Контракт Platform `v1`, PRD Platform v1.20; слой C пройден на `verdeect-platform` `10b757b`. Против Platform до `10b757b` тексты `ACCOUNT_DISABLED` и `CONTEXT_REVOKED` в ответах Platform отличаются от текстов пакета. Коды и контракт `v1` не меняются: тексты повторяют Platform дословно (D9), поэтому выпуск — патч, а не мажор. Тесты потребителя, сверяющие эти тексты или названия модулей подделки дословно, при переходе на 1.1.1 нужно обновить.
+
+### Changed
+
+- Тексты `ACCOUNT_DISABLED` и `CONTEXT_REVOKED`, названия модулей подделки — как Platform v1.20 (`10b757b`).
+
 ## [1.1.0] - 2026-10-29
 
 Лимиты тарифа в ответе `permissions` (UC-5); контракт Platform `v1`, PRD Platform v1.14; слой C пройден на `verdeect-platform` `513886e`. Против Platform до `513886e` в `limits` только `fileSizeMb`, как в 1.0.x.

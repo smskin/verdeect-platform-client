@@ -1,12 +1,12 @@
-// Копия verdeect-platform apps/platform/src/modules/catalog/domain/decision-codes.ts @ 513886e (prd.md §3.4, D9, AC-11).
+// Копия verdeect-platform apps/platform/src/modules/catalog/domain/decision-codes.ts @ 10b757b (prd.md §3.4, D9, AC-11).
 // Не править вручную: только перекопировать из источника и обновить коммит в этой строке.
 /** Коды и сообщения решений (prd.md §5.6) — тексты дословно. */
 export const DECISION_MESSAGES = {
     NOT_MEMBER: 'Нет доступа к компании.',
     COMPANY_SUSPENDED: 'Компания приостановлена.',
-    ACCOUNT_DISABLED: 'Учётная запись заблокирована.',
+    ACCOUNT_DISABLED: 'Учётная запись заблокирована. Обратитесь к администратору.',
     SEATS_EXCEEDED: 'Превышено число мест по тарифу. Обратитесь к администратору.',
-    CONTEXT_REVOKED: 'Контекст отозван. Нужен новый диалог.',
+    CONTEXT_REVOKED: 'Разговор закрыт: изменились настройки или доступы. Начните новый разговор.',
     FORBIDDEN: 'Недостаточно прав.',
     PLAN_MODULE: 'Возможность не входит в тариф компании.',
     MODULE_DISABLED: 'Раздел отключён. Данные сохранены.',
