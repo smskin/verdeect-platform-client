@@ -1,13 +1,14 @@
 // AC-22 (C), UC-5, UC-5 A1 (prd.md §3.2, §7): limits ответа permissions настоящего Platform — тариф default
 // из seed/plans.json коммита прогона. По умолчанию — Platform с дополнением B.1; PLATFORM_LIMITS=legacy —
 // необязательный прогон против Platform без дополнения (в limits только fileSizeMb). С B.1 (Platform D25) —
-// семь ключей Limits у admin и семь null при общем отказе.
+// семь ключей Limits у admin и семь null при общем отказе (компания отключена; не участник).
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import type { PermissionsResponse } from '../../src/core/index.js';
 import { LimitsSchema } from '../../src/core/limits.js';
 import { ContractBroker } from './support/broker.js';
+import { organizationDisabled } from './support/identity-events.js';
 import {
     createContractClient,
     humanSubject,
@@ -84,15 +85,51 @@ describe('UC-5: лимиты тарифа против настоящего Plat
         },
     );
 
-    it.runIf(!LEGACY)('AC-22: общий отказ (NOT_MEMBER) — limits из семи ключей null', async () => {
-        const stranger = humanSubject(tenant, tenantId, randomUUID());
-        const denied = await contract.client.permissions(stranger, { fresh: true });
+    it.runIf(!LEGACY)(
+        'AC-22: общий отказ — компания отключена (identity.organization.disabled → COMPANY_SUSPENDED), limits из семи ключей null',
+        async () => {
+            // Отдельная компания: отключение общей компании сломало бы остальные тесты файла.
+            const suspended = uniqueTenant('c22s');
+            const member = humanSubject(suspended.tenant, suspended.tenantId, randomUUID());
+            await prepareMember(
+                contract,
+                broker,
+                suspended.tenant,
+                suspended.tenantId,
+                member.sub,
+                {
+                    createCompany: true,
+                },
+            );
 
-        expect(denied).toMatchObject({ allow: false, code: 'NOT_MEMBER' });
-        expect(denied.limits).toStrictEqual(
-            Object.fromEntries(LIMIT_KEYS.map((key) => [key, null])),
-        );
-    });
+            const mark = broker.mark();
+            broker.publishIdentity(organizationDisabled(suspended.tenantId, suspended.tenant));
+            await broker.nextPolicyChanged(
+                (data) =>
+                    data.tenantId === suspended.tenantId && data.reason === 'company_suspended',
+                mark,
+            );
+            const denied = await contract.client.permissions(member, { fresh: true });
+
+            expect(denied).toMatchObject({ allow: false, code: 'COMPANY_SUSPENDED' });
+            expect(denied.limits).toStrictEqual(
+                Object.fromEntries(LIMIT_KEYS.map((key) => [key, null])),
+            );
+        },
+    );
+
+    it.runIf(!LEGACY)(
+        'AC-22: общий отказ — не участник компании (NOT_MEMBER), limits из семи ключей null',
+        async () => {
+            const stranger = humanSubject(tenant, tenantId, randomUUID());
+            const denied = await contract.client.permissions(stranger, { fresh: true });
+
+            expect(denied).toMatchObject({ allow: false, code: 'NOT_MEMBER' });
+            expect(denied.limits).toStrictEqual(
+                Object.fromEntries(LIMIT_KEYS.map((key) => [key, null])),
+            );
+        },
+    );
 
     it.runIf(LEGACY)('AC-22 (без B.1): в limits только fileSizeMb', () => {
         expect(snapshot.allow).toBe(true);
