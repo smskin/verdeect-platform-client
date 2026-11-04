@@ -3,7 +3,7 @@
 Клиент авторизации Platform для сервисов Вердикта 2.0 (Orchestrator, Files, Media): решение по праву локально из кэша снимка `POST /v1/authz/permissions`, сброс по `platform.policy.changed`, свежесть через `minEpoch`, guard `@RequirePermission` для NestJS, подделка Platform для тестов потребителей.
 
 - **Режим:** INIT (новый репозиторий `verdeect2/verdeect-platform-client`, GitHub `smskin/verdeect-platform-client`)
-- **Ревизия:** r6 · 2026-10-29 · PRD v1.12
+- **Ревизия:** r7 · 2026-11-04 · PRD v1.13
 - **Источник истины:** `prd.md`; контракт Platform — `platform-lite/prd.md` v1.11 (§5.6, §6.1, §7.1–7.3, §9.2, §11, §15), код — `verdeect-platform` `main` `7adb423`
 - **Стек:** TypeScript (ESM, Node ≥ 22.12) · `zod` 4.6.7 · NestJS 12 и `@verdeect/auth` ^1.0.1 (необязательные peer) · Vitest · Testcontainers (только слой C, локально) · pnpm
 - **Специалисты:** `nestjs-specialist`, `nestjs-code`, `nestjs-generate-documentation`
@@ -53,3 +53,4 @@
 - r4 — 2026-10-28: по реализации E2 — tenant подделки по умолчанию — slug из tenantId, явный неверный tenant — TypeError (§5.5, AC-8a); PRD v1.10.
 - r5 — 2026-10-28: по ревью E2 — slug из tenantId вне шаблона и повтор участника в members → TypeError (§5.5, AC-8a); AC-12 — dist/core/index.js; PRD v1.11.
 - r6 — 2026-10-29: по запросу Orchestrator (orchestrator/prd.md B.2) — limits в ответе permissions по копии Limits Platform, лимиты подделки; UC-5, AC-20–22, этап E4, выпуск 1.1.0; PRD v1.12.
+- r7 — 2026-11-04: по PL-29 (Platform PRD v1.20, 10b757b) — тексты ACCOUNT_DISABLED и CONTEXT_REVOKED; копии @ 10b757b; выпуск 1.1.1; PRD v1.13; а также формулировки v1.12 о полном Limits (Platform v1.14, доводка r11) — §3.2, UC-5, AC-22, «Зависимость»; синхронизация с копией проекта от 29.10, требования не меняются.

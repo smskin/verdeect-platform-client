@@ -1,6 +1,8 @@
 # PRD: `@verdeect/platform-client` — клиент авторизации Platform (Вердикт 2.0)
 
-> Версия 1.12 от 29.10.2026 — по запросу Orchestrator (`orchestrator/prd.md` приложение B.2): `limits` в ответе `permissions` — по копии схемы `Limits` Platform, незнакомые числовые ключи не срезаются (§3.2); `limits` в подделке — `FakeCompany.limits`, `setLimits` (§5.5); UC-5, AC-20–AC-22, этап E4, выпуск 1.1.0.
+> Версия 1.13 от 04.11.2026 — по PL-29 (Platform PRD v1.20, `main` `10b757b`): тексты `ACCOUNT_DISABLED` и `CONTEXT_REVOKED` (§3.4, UC-3) — дословно как Platform §5.6; копии `src/core/codes.ts`, `src/testing/catalog.ts` — @ `10b757b`; выпуск 1.1.1.
+>
+> Версия 1.12 от 29.10.2026 — по запросам Orchestrator (`orchestrator/prd.md` приложение B.2) и Platform (PRD Platform v1.14 — весь объект `Limits` в `permissions`): `limits` в ответе `permissions` — по копии схемы `Limits` Platform, незнакомые числовые ключи не срезаются (§3.2); `limits` в подделке — `FakeCompany.limits`, `setLimits` (§5.5); UC-5, AC-20–AC-22, этап E4, выпуск 1.1.0.
 >
 > Версия 1.11 от 28.10.2026 — по ревью E2: slug из `tenantId`, не проходящий шаблон Platform, и повтор `(tenantId, sub)` в `members` — `TypeError` (§5.5, AC-8a); AC-12 — граф импортов `dist/core/index.js`.
 >
@@ -26,7 +28,7 @@
 >
 > Версия 1.0 от 26.10.2026. Проработка в чате Platform-лайт (решение D14 `platform-lite/prd.md`: пакет, три потребителя с этапа 1). Отдельный репозиторий со своей инициализацией AI Factory и своим `/aif-prompts`.
 >
-> **Этот PRD самодостаточен**: контракт Platform, нужный пакету, повторён в §3. Источник истины контракта — `platform-lite/prd.md` **v1.11**: §5.6, §6.1 (примечание о требуемой эпохе), §5.5 (`Limits`), §7.1–7.3 (`minEpoch`), §9.2, §11, §15 «Отзыв»; код — `verdeect-platform` `main` (`7adb423` и новее). Ключи лимитов тарифа в ответе `permissions` (кроме `fileSizeMb`) — дополнение контракта Platform по `orchestrator/prd.md` приложение B.1 п. 1 (этап E4). При расхождении правится там, затем здесь.
+> **Этот PRD самодостаточен**: контракт Platform, нужный пакету, повторён в §3. Источник истины контракта — `platform-lite/prd.md` **v1.11**: §5.6, §6.1 (примечание о требуемой эпохе), §5.5 (`Limits`), §7.1–7.3 (`minEpoch`), §9.2, §11, §15 «Отзыв»; код — `verdeect-platform` `main` (`7adb423` и новее). Весь объект `Limits` в ответе `permissions` (семь ключей; в общем отказе — все `null`) — Platform PRD v1.14 (доводка пакета `0000-platform-lite`, ревизия r11, §17, AC-2.10), по запросу `orchestrator/prd.md` приложение B.1 п. 1; в пакете — этап E4. При расхождении правится там, затем здесь.
 >
 > Формат — для AI Factory. Идентификаторы: D, UC, AC, NFR. `[OPEN]`, `[ASSUMPTION]`.
 >
@@ -104,7 +106,7 @@ interface Limits {
 }
 ```
 
-**`limits`** (с 1.1.0): `fileSizeMb` обязателен; остальные ключи копии `Limits` необязательны — Platform без дополнения B.1 их не присылает, тогда ключа в ответе пакета **нет** (не `null`: «нет данных» и «без лимита» различаются, решает потребитель). Известный ключ — `number | null`, иначе ответ не по схеме → `PlatformContractError`. Незнакомый ключ со значением `number | null` передаётся как есть; с другим значением — отбрасывается, лог `debug`, без ошибки (новый вид лимита не должен ломать решения по правам). В общем отказе значения не проверяются сверх типа (Platform шлёт `null`). Копия ключей — `src/core/limits.ts` из `verdeect-platform` `apps/platform/src/modules/catalog/domain/limits.ts`, источник и коммит в шапке.
+**`limits`** (с 1.1.0): `fileSizeMb` обязателен; остальные ключи копии `Limits` необязательны — Platform до v1.14 их не присылает, тогда ключа в ответе пакета **нет** (не `null`: «нет данных» и «без лимита» различаются, решает потребитель). Известный ключ — `number | null`, иначе ответ не по схеме → `PlatformContractError`. Незнакомый ключ со значением `number | null` передаётся как есть; с другим значением — отбрасывается, лог `debug`, без ошибки (новый вид лимита не должен ломать решения по правам). В общем отказе значения не проверяются сверх типа (Platform шлёт `null`). Копия ключей — `src/core/limits.ts` из `verdeect-platform` `apps/platform/src/modules/catalog/domain/limits.ts`, источник и коммит в шапке.
 
 `tenant` и `tenantId` — из одного `Principal`; несовпадение с компанией — 422 `TENANT_MISMATCH`. `permissions ∪ keys(denied)` = весь каталог прав Platform; `modules` — весь каталог модулей (без `title`). `minEpoch`: если эпоха снимка в кэше Platform меньше (или компании в снимке нет), Platform один раз перечитывает БД; на решение поле не влияет.
 
@@ -122,9 +124,9 @@ interface Limits {
 |---|---|
 | `NOT_MEMBER` | «Нет доступа к компании.» |
 | `COMPANY_SUSPENDED` | «Компания приостановлена.» |
-| `ACCOUNT_DISABLED` | «Учётная запись заблокирована.» |
+| `ACCOUNT_DISABLED` | «Учётная запись заблокирована. Обратитесь к администратору.» |
 | `SEATS_EXCEEDED` | «Превышено число мест по тарифу. Обратитесь к администратору.» |
-| `CONTEXT_REVOKED` | «Контекст отозван. Нужен новый диалог.» |
+| `CONTEXT_REVOKED` | «Разговор закрыт: изменились настройки или доступы. Начните новый разговор.» |
 | `FORBIDDEN` | «Недостаточно прав.» |
 | `PLAN_MODULE` | «Возможность не входит в тариф компании.» |
 | `MODULE_DISABLED` | «Раздел отключён. Данные сохранены.» |
@@ -346,7 +348,7 @@ interface FakeCompany { tenantId: string; tenant?: string; epoch?: number;      
 **Актор:** сервис (Media). **Предусловие:** маршрут с `@RequirePermission('chat.office')`; токен агента с `pep = 7`; в кэше снимок с `epoch = 7`.
 1. `check` → `pep = epoch` → решение по праву.
 2. Приходит `policy.changed {epoch: 8, subs: [sub]}` → снимок удалён, `lastSeenEpoch = 8`.
-3. Следующий вызов с `pep = 7` → `permissions` с `minEpoch: 8` → снимок `epoch = 8` → 403 `CONTEXT_REVOKED` «Контекст отозван. Нужен новый диалог.».
+3. Следующий вызов с `pep = 7` → `permissions` с `minEpoch: 8` → снимок `epoch = 8` → 403 `CONTEXT_REVOKED` «Разговор закрыт: изменились настройки или доступы. Начните новый разговор.».
 
 **A1.** Токен уже перевыпущен (`pep = 8`), а событие не дошло, в кэше снимок `epoch = 7` → `permissions` с `minEpoch: 8` → Platform перечитывает БД → снимок `8` → по праву.
 **A2.** То же, но Platform недоступен → решение по снимку `7`, `warn PLATFORM_UNAVAILABLE` (D6).
@@ -377,11 +379,11 @@ interface FakeCompany { tenantId: string; tenant?: string; epoch?: number;      
 **Результат:** guard'ы и обработка отказов сервиса проверены без Platform.
 
 **UC-5. Сервис читает лимиты тарифа.**
-**Актор:** сервис (Orchestrator). **Предусловие:** пакет 1.1.0+; Platform присылает ключи лимитов (дополнение B.1).
+**Актор:** сервис (Orchestrator). **Предусловие:** пакет 1.1.0+; Platform v1.14+ (весь объект `Limits`).
 1. `client.permissions({sub, tenant, tenantId, act: 'human'})` → снимок из кэша или запрос (§5.2).
 2. `limits.assistants`, `limits.concurrentChats`, `limits.modelRequestsPerMonth`, `limits.modelRequestsPerMemberPerMonth` — эффективные лимиты компании; `null` — без лимита.
 
-**A1.** Platform без дополнения B.1 → в `limits` только `fileSizeMb`, остальных ключей нет; решения по правам не меняются.
+**A1.** Platform до v1.14 → в `limits` только `fileSizeMb`, остальных ключей нет; решения по правам не меняются.
 **A2.** Platform прислал новый числовой ключ → он есть в `limits` как есть; нечисловой — отброшен, решение по правам получено.
 **A3.** Тест сервиса: `fake.setLimits(t, {assistants: 3})` → `permissions().limits.assistants = 3` после `clear()` или TTL.
 **Результат:** сервис применяет лимиты тарифа без собственного запроса к Platform и без обновления кода при появлении ключей.
@@ -429,7 +431,7 @@ interface FakeCompany { tenantId: string; tenant?: string; epoch?: number;      
 
 - AC-20 (U, UC-5, §3.2) Ответ разрешения с `limits: {fileSizeMb: 50, assistants: 3, concurrentChats: null, modelRequestsPerMonth: 1000, modelRequestsPerMemberPerMonth: null}` → `permissions().limits` содержит все пять ключей с этими значениями (в том числе из кэша). Только `{fileSizeMb: 50}` → остальных ключей в ответе нет (не `null`). `{fileSizeMb: 50, newLimit: 7}` → `newLimit: 7` есть; `{fileSizeMb: 50, flags: 'x'}` → `flags` нет, лог `debug`, решение по правам получено. `assistants: 'x'` → `PlatformContractError`, в кэш не попал. Общий отказ с `limits` из семи `null` → проходит схему. Копия `src/core/limits.ts` совпадает по ключам со схемой `Limits` Platform (источник и коммит в шапке). AC-17 после изменения — в пределах NFR-1.
 - AC-21 (U, UC-5 A3, §5.5) Подделка: по умолчанию `permissions().limits` — семь ключей `null`; `companies: [{tenantId: t, limits: {assistants: 3}}]` → `assistants: 3`, остальные `null`; `setLimits(t, {concurrentChats: 2})` → после `client.clear()` `concurrentChats: 2`, `assistants` прежний; `setLimits` не меняет эпоху компании; `setLimits(u, {assistants: 3})` для компании `u`, не заведённой ранее, → компания заводится с `epoch = 1`, `assistants: 3`, остальные `null`; `setLimits(t, {foo: 1})`, `setLimits(t, {assistants: 0})`, `setLimits(t, {assistants: 'x'})` → `TypeError`. Пример README «Тесты потребителя» показывает `setLimits` (проверка совпадения с шаблоном — AC-12).
-- AC-22 (C, UC-5) Против Platform с дополнением B.1: `permissions()` участника `admin` → `limits` содержит `fileSizeMb` и четыре ключа B.1 со значениями тарифа `default` из `seed/plans.json` Platform (`fileSizeMb: 50`, остальные `null`); ответ проходит zod-схему пакета. Против Platform без дополнения (`PLATFORM_IMAGE` старой версии, необязательный прогон) — в `limits` только `fileSizeMb`, остальные AC слоя C зелёные.
+- AC-22 (C, UC-5) Против Platform v1.14+ (доводка r11): `permissions()` участника `admin` → `limits` — все семь ключей `Limits` со значениями тарифа `default` из `seed/plans.json` Platform (`fileSizeMb: 50`, остальные `null`); общий отказ (`organization.disabled`) → семь ключей `null`; ответы проходят zod-схему пакета. Против Platform до v1.14 (`PLATFORM_IMAGE` старой версии, необязательный прогон) — в `limits` только `fileSizeMb`, остальные AC слоя C зелёные.
 
 ## 8. Нефункциональные требования
 
@@ -451,7 +453,7 @@ interface FakeCompany { tenantId: string; tenant?: string; epoch?: number;      
 | E3. Контракт и публикация | стенд и контрактные тесты (локально, D10) против Platform `main` `7adb423`+, `ci.yml` с publish, `scripts/publish.mjs`, `docs/` (в том числе `releasing.md`), README, CHANGELOG, ручной выпуск `1.0.0`, `npm trust` | AC-13–14, 15 (C), 16 |
 | E4. Лимиты тарифа (1.1.0) | `Limits` в ответе `permissions` (§3.2, копия ключей `src/core/limits.ts`), лимиты подделки (`FakeCompany.limits`, `setLimits`, §5.5), README (лимиты, тесты потребителя), CHANGELOG `[1.1.0]`, таблица совместимости (NFR-5), выпуск `1.1.0` тегом через CI | AC-20, 21, 22 |
 
-**Зависимость:** E1–E3 — без внешних блокировок: `minEpoch` слит в `verdeect-platform` `main` `7adb423` (Platform v1.11). E2 — после E1, E3 — после E2. E4 — слой U сразу; AC-22 и тег `v1.1.0` — после слияния дополнения B.1 в `main` `verdeect-platform` (коммит сообщит чат Platform).
+**Зависимость:** E1–E3 — без внешних блокировок: `minEpoch` слит в `verdeect-platform` `main` `7adb423` (Platform v1.11). E2 — после E1, E3 — после E2. E4 — слой U сразу; AC-22 и тег `v1.1.0` — после слияния доводки r11 Platform (PRD v1.14, AC-2.10, ветка `fix/r11-full-limits`) в `main` `verdeect-platform` (хеш сообщит чат Platform).
 
 ## 10. Открытые вопросы
 
