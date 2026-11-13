@@ -3,7 +3,7 @@
 Клиент авторизации Platform для сервисов Вердикта 2.0 (Orchestrator, Files, Media): решение по праву локально из кэша снимка `POST /v1/authz/permissions`, сброс по `platform.policy.changed`, свежесть через `minEpoch`, guard `@RequirePermission` для NestJS, подделка Platform для тестов потребителей.
 
 - **Режим:** INIT (новый репозиторий `verdeect2/verdeect-platform-client`, GitHub `smskin/verdeect-platform-client`)
-- **Ревизия:** r7 · 2026-11-04 · PRD v1.13
+- **Ревизия:** r8 · 2026-11-14 · PRD v1.14
 - **Источник истины:** `prd.md`; контракт Platform — `platform-lite/prd.md` v1.11 (§5.6, §6.1, §7.1–7.3, §9.2, §11, §15), код — `verdeect-platform` `main` `7adb423`
 - **Стек:** TypeScript (ESM, Node ≥ 22.12) · `zod` 4.6.7 · NestJS 12 и `@verdeect/auth` ^1.0.1 (необязательные peer) · Vitest · Testcontainers (только слой C, локально) · pnpm
 - **Специалисты:** `nestjs-specialist`, `nestjs-code`, `nestjs-generate-documentation`
@@ -23,6 +23,7 @@
 | E2 | Nest и подделка | §5.4: `PlatformAuthzModule`, `@RequirePermission`, `PermissionGuard` (D11), тексты ответов; §5.5: `createFakePlatform` с `setModule`, копия каталога (`src/testing/catalog.ts`), условие `development`; проект-потребитель `test/consumer` | UC-1–UC-4 | AC-8a, AC-10, AC-12 | full | E1 |
 | E3 | Контракт и выпуск | стенд слоя C (§7) и контрактные тесты против Platform `7adb423`+; цель `make test-contract`; доработка `ci.yml` из 5.1a до publish (D1, NFR-6), `scripts/publish.mjs`, `docs/` (в том числе `releasing.md`), README (подключение, тесты потребителя, таблица совместимости — NFR-5), CHANGELOG; NFR-5, NFR-6 | — (сквозная проверка UC-1, UC-2) | AC-13, AC-14, AC-15 (C), AC-16 | full | E2 |
 | E4 | Лимиты тарифа (1.1.0) | `Limits` в ответе `permissions` — копия ключей схемы Limits Platform в src/core/limits.ts, незнакомые числовые ключи не срезаются (§3.2); лимиты подделки — FakeCompany.limits, setLimits (§5.5); README, CHANGELOG [1.1.0], таблица совместимости (NFR-5); выпуск 1.1.0 тегом через CI | UC-5 | AC-20–AC-22 | full | E3 |
+| E5 | Platform на kit (1.1.2) | стенд слоя C под Platform 91b0123+ (CLI verdeect-kit, DB_*_PASSWORD, готовность по /health), копии @ 91b0123, actor подделки без accountId, выпуск 1.1.2 | — | AC-23; AC-13–15 (C), AC-22 | full | E4 |
 
 Выпуск 1.0.0 (тег `v1.0.0`) — вручную после E3, затем `npm trust` и запрет публикации токенами (D1). Следом — подключение пакета в Orchestrator, Files, Media (их чаты).
 
@@ -54,3 +55,4 @@
 - r5 — 2026-10-28: по ревью E2 — slug из tenantId вне шаблона и повтор участника в members → TypeError (§5.5, AC-8a); AC-12 — dist/core/index.js; PRD v1.11.
 - r6 — 2026-10-29: по запросу Orchestrator (orchestrator/prd.md B.2) — limits в ответе permissions по копии Limits Platform, лимиты подделки; UC-5, AC-20–22, этап E4, выпуск 1.1.0; PRD v1.12.
 - r7 — 2026-11-04: по PL-29 (Platform PRD v1.20, 10b757b) — тексты ACCOUNT_DISABLED и CONTEXT_REVOKED; копии @ 10b757b; выпуск 1.1.1; PRD v1.13; а также формулировки v1.12 о полном Limits (Platform v1.14, доводка r11) — §3.2, UC-5, AC-22, «Зависимость»; синхронизация с копией проекта от 29.10, требования не меняются.
+- r8 — 2026-11-14: по PL-44, PL-74 (Platform на @verdeect/kit, 91b0123) — формы actor, actor подделки, стенд слоя C; AC-23, этап E5, выпуск 1.1.2; PRD v1.14.
