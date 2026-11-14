@@ -30,7 +30,7 @@ describe('AC-8a: копия каталога Platform', () => {
         const [header = ''] = COPY.split('\n');
         expect(header).toContain(`${SOURCE_DIR}/permissions.ts`);
         expect(header).toContain(`${SOURCE_DIR}/modules.ts`);
-        expect(header).toContain('@ 10b757b');
+        expect(header).toContain('@ 91b0123');
     });
 
     it.runIf(existsSync(PLATFORM_GIT))(

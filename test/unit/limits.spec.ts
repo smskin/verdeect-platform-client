@@ -15,7 +15,7 @@ describe('AC-20: копия Limits Platform', () => {
     it('AC-20: шапка копии limits.ts содержит путь источника и коммит', () => {
         const [header = ''] = COPY.split('\n');
         expect(header).toContain(SOURCE);
-        expect(header).toContain('@ 10b757b');
+        expect(header).toContain('@ 91b0123');
     });
 
     it('AC-20: ключи копии — семь ключей схемы Limits Platform', () => {

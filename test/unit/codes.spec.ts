@@ -41,7 +41,7 @@ describe('AC-11: коды и тексты §3.4', () => {
     it('AC-11: шапка копии содержит путь источника и коммит', () => {
         const [header = ''] = COPY.split('\n');
         expect(header).toContain('apps/platform/src/modules/catalog/domain/decision-codes.ts');
-        expect(header).toContain('@ 10b757b');
+        expect(header).toContain('@ 91b0123');
     });
 
     it.runIf(existsSync(PLATFORM_GIT))(

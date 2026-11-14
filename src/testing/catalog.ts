@@ -1,4 +1,4 @@
-// Копия verdeect-platform apps/platform/src/modules/catalog/domain/permissions.ts и apps/platform/src/modules/catalog/domain/modules.ts @ 10b757b (prd.md §5.5, AC-8a).
+// Копия verdeect-platform apps/platform/src/modules/catalog/domain/permissions.ts и apps/platform/src/modules/catalog/domain/modules.ts @ 91b0123 (prd.md §5.5, AC-8a).
 // Не править вручную: только перекопировать из источника и обновить коммит в этой строке.
 /** Права компании (prd.md §5.1); порядок — как в PRD. Право вне списка — ошибка вызывающего `UNKNOWN_PERMISSION`. */
 export const PERMISSION_KEYS = [

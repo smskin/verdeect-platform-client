@@ -1,4 +1,4 @@
-// Клиент: кэш и объединение (prd.md §5.2, §5.3, D3, D4): AC-1, AC-2, AC-3, AC-4, AC-19 (LRU, clear).
+// Клиент: кэш и объединение (prd.md §5.2, §5.3, D3, D4): AC-1, AC-2, AC-3, AC-4, AC-19 (LRU, clear), AC-23 (формы actor).
 import { describe, expect, it } from 'vitest';
 import { createPlatformAuthzClient } from '../../src/core/client.js';
 import { PlatformUnavailableError } from '../../src/core/errors.js';
@@ -8,7 +8,13 @@ import { createClock } from './support/clock.js';
 import { createFetchStub, createGate, type StubReply } from './support/fetch-stub.js';
 import { CLIENT_SECRET, TOKEN_1 } from './support/secrets.js';
 import { HUMAN_A, HUMAN_B, PERMS, allowedSnapshot, generalDeny } from './support/snapshots.js';
-import { PERMISSIONS_PATH, createTestClient, flush, policyEvent } from './support/test-client.js';
+import {
+    ACTOR_FORMS,
+    PERMISSIONS_PATH,
+    createTestClient,
+    flush,
+    policyEvent,
+} from './support/test-client.js';
 
 const ALL_PERMS = allowedSnapshot({ permissions: [...PERMS], denied: {} });
 
@@ -107,6 +113,23 @@ describe('AC-4: onPolicyChanged', () => {
         await t.client.check(HUMAN_B, PERMS[0]);
         expect(t.permissionsRequests()).toHaveLength(3);
     });
+
+    it.each(ACTOR_FORMS)(
+        'AC-23: onPolicyChanged с actor %s сбрасывает снимки компании',
+        async (_name, actor) => {
+            const t = await warmUp();
+            t.client.onPolicyChanged({
+                ...policyEvent('cmp_1', 8, { subs: ['usr_a'] }),
+                actor,
+            });
+            await t.client.check(HUMAN_A, PERMS[0]);
+            const requests = t.permissionsRequests();
+            expect(requests).toHaveLength(3);
+            expect(requests[2]?.json()).toMatchObject({ minEpoch: 8 });
+            await t.client.check(HUMAN_B, PERMS[0]);
+            expect(t.permissionsRequests()).toHaveLength(3);
+        },
+    );
 
     it.each([
         ['без subs', {}],

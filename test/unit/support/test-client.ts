@@ -66,6 +66,23 @@ export function createTestClient(
     };
 }
 
+/** AC-23 (prd.md §5.3): формы `actor` событий Platform, которые принимает `onPolicyChanged`. */
+export const ACTOR_FORMS: readonly (readonly [string, Record<string, unknown>])[] = [
+    [
+        '{clientId: verdeect-platform, channel}',
+        { clientId: 'verdeect-platform', channel: 'system' },
+    ],
+    [
+        '{clientId: verdeect-platform-cli, channel}',
+        { clientId: 'verdeect-platform-cli', channel: 'system' },
+    ],
+    ['{channel}', { channel: 'system' }],
+    [
+        '{clientId: verdeect-platform-cli, accountId: null, channel}',
+        { clientId: 'verdeect-platform-cli', accountId: null, channel: 'system' },
+    ],
+];
+
 /** Конверт platform.policy.changed по схеме Platform (как в schemas.spec.ts). */
 export function policyEvent(
     tenantId: string,
