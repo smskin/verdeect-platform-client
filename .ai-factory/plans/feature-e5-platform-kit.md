@@ -147,13 +147,14 @@ Rationale: план реализует ровно скоуп этапа E5 из 
   - Логи: нет.
   - **Skill:** nestjs-code test unit docs (MODIFY) — для `docs.spec.ts`; остальное — none (манифест и документация).
 
-- [ ] **Task 8: Слияние и тег `v1.1.2` ⛔** — после T7, T9
+- [x] **Task 8: Слияние и тег `v1.1.2` ⛔** — после T7, T9
   - Перед действием — подтверждение пользователя (внешнее действие).
   - Слить `feature/e5-platform-kit` в `main` (`--no-ff`, как E3/E4), `git push origin main`.
   - `git tag v1.1.2` на коммите слияния, `git push origin v1.1.2` → CI: lint → test → build → publish (Trusted Publishing). Ручной `npm publish` запрещён. `gh` нет — статус CI проверять по `npm view` (memory: `npm view` отстаёт на минуты, повторить).
   - `npm view @verdeect/platform-client@1.1.2 version` → `1.1.2`.
   - Логи: `[publish]` — существующий префикс `scripts/publish.mjs`.
   - **Skill:** none — git и CI.
+  - **Результат (2026-11-14):** слияние `5c6e7d8` (`--no-ff`) в `main`, `make ci` на слиянии зелёный (unit 380, package 27); тег `v1.1.2` → CI publish; `npm view @verdeect/platform-client@1.1.2 version` → `1.1.2`, provenance SLSA v1.
 
 ### Phase 4: Документация
 
