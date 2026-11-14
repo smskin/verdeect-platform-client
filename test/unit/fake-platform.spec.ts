@@ -1,4 +1,4 @@
-// AC-8a, UC-3, UC-4 (prd.md §5.5, §5.3): createFakePlatform — ответы по правилам Platform, конверт policyChanged, свежесть.
+// AC-8a, UC-3, UC-4, AC-23 (prd.md §5.5, §5.3): createFakePlatform — ответы по правилам Platform, конверт policyChanged, свежесть.
 import { readFileSync } from 'node:fs';
 // ajv и ajv-formats — CJS: в NodeNext default-импорт = module.exports; функции/классы берём из .default (выставлен в рантайме).
 import Ajv2020Module from 'ajv/dist/2020.js';
@@ -153,6 +153,15 @@ describe('AC-8a: createFakePlatform', () => {
             expect(other.log.messages('warn')).toHaveLength(0);
         },
     );
+
+    it('AC-23: fake.policyChanged(t, [s]) — actor {clientId: verdeect-platform-cli, channel: system} без accountId, проходит ajv по копии platform-events.schema.json @ 91b0123', () => {
+        const fake = createFakePlatform({ companies: [{ tenantId: T, tenant: 'acme' }] });
+        const envelope = fake.policyChanged(T, [S]);
+        const { actor } = envelope as { actor: Record<string, unknown> };
+        expect(actor).toStrictEqual({ clientId: 'verdeect-platform-cli', channel: 'system' });
+        expect('accountId' in actor).toBe(false);
+        expect(validate(envelope), JSON.stringify(validate.errors)).toBe(true);
+    });
 
     it('AC-8a: участник без members и без grant/deny → NOT_MEMBER', async () => {
         const unknownCompany = createFakePlatform();

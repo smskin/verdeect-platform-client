@@ -8,6 +8,7 @@
 - [x] **E2 Nest и подделка** — §5.4: `PlatformAuthzModule`, `@RequirePermission`, `PermissionGuard` (D11), тексты ответов; §5.5: `createFakePlatform` с `setModule`, копия каталога (`src/testing/catalog.ts`), условие `development`; проект-потребитель `test/consumer` · requirements/0000-platform-client · UC-1–UC-4, AC-8a, AC-10, AC-12
 - [x] **E3 Контракт и выпуск** — стенд слоя C (§7) и контрактные тесты против Platform `7adb423`+; цель `make test-contract`; доработка `ci.yml` из 5.1a до publish (D1, NFR-6), `scripts/publish.mjs`, `docs/` (в том числе `releasing.md`), README (подключение, тесты потребителя, таблица совместимости — NFR-5), CHANGELOG; NFR-5, NFR-6 · requirements/0000-platform-client · — (сквозная проверка UC-1, UC-2), AC-13, AC-14, AC-15 (C), AC-16
 - [x] **E4 Лимиты тарифа (1.1.0)** — `Limits` в ответе `permissions` — копия ключей схемы Limits Platform в `src/core/limits.ts`, незнакомые числовые ключи не срезаются (§3.2); лимиты подделки — `FakeCompany.limits`, `setLimits` (§5.5); README, CHANGELOG `[1.1.0]`, таблица совместимости (NFR-5); выпуск 1.1.0 тегом через CI · requirements/0000-platform-client · UC-5, AC-20–AC-22
+- [ ] **E5 Platform на kit (1.1.2)** — стенд слоя C под Platform `91b0123`+ (CLI `verdeect-kit`, `DB_*_PASSWORD`, готовность по `/health`), копии @ `91b0123`, `actor` подделки без `accountId`, выпуск 1.1.2 · requirements/0000-platform-client · —, AC-23; AC-13–15 (C), AC-22
 
 ## Завершено
 
@@ -26,3 +27,4 @@
 | E2 Nest и подделка | requirements/0000-platform-client | UC-1–UC-4 | AC-8a, AC-10, AC-12 | E1 |
 | E3 Контракт и выпуск | requirements/0000-platform-client | — (сквозная проверка UC-1, UC-2) | AC-13, AC-14, AC-15 (C), AC-16 | E2 |
 | E4 Лимиты тарифа (1.1.0) | requirements/0000-platform-client | UC-5 | AC-20–AC-22 | E3 |
+| E5 Platform на kit (1.1.2) | requirements/0000-platform-client | — | AC-23; AC-13–15 (C), AC-22 | E4 |

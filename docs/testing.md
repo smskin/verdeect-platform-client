@@ -25,16 +25,16 @@ const fake = createFakePlatform({
 });
 ```
 
-| Метод                                  | Что делает                                                                                                                                           |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `client`                               | клиент ядра; передаётся в `PlatformAuthzModule.forRoot({client})`                                                                                    |
-| `grant(tenantId, sub, permissions)`    | заменяет права участника и снимает общий отказ; `[]` — участник без прав (`FORBIDDEN`)                                                               |
-| `deny(tenantId, sub, code)`            | общий отказ; только `GeneralDenyCode` (`NOT_MEMBER`, `COMPANY_SUSPENDED`, `ACCOUNT_DISABLED`, `SEATS_EXCEEDED`, `CONTEXT_REVOKED`)                   |
-| `setModule(tenantId, moduleId, state)` | `'enabled'`, `'PLAN_MODULE'` или `'MODULE_DISABLED'`                                                                                                 |
-| `setEpoch(tenantId, epoch)`            | эпоха политики компании, целое ≥ 1                                                                                                                   |
-| `setLimits(tenantId, limits)`          | сливается с текущими лимитами; `null` — без лимита; ключ вне копии или не целое ≥ 1 → `TypeError`; эпоха не меняется — видно после `clear()` или TTL |
-| `policyChanged(tenantId, subs?)`       | поднимает эпоху на 1 и возвращает конверт для `client.onPolicyChanged`                                                                               |
-| `calls()`                              | журнал запросов к подделке `{path, body}`                                                                                                            |
+| Метод                                  | Что делает                                                                                                                                                                   |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client`                               | клиент ядра; передаётся в `PlatformAuthzModule.forRoot({client})`                                                                                                            |
+| `grant(tenantId, sub, permissions)`    | заменяет права участника и снимает общий отказ; `[]` — участник без прав (`FORBIDDEN`)                                                                                       |
+| `deny(tenantId, sub, code)`            | общий отказ; только `GeneralDenyCode` (`NOT_MEMBER`, `COMPANY_SUSPENDED`, `ACCOUNT_DISABLED`, `SEATS_EXCEEDED`, `CONTEXT_REVOKED`)                                           |
+| `setModule(tenantId, moduleId, state)` | `'enabled'`, `'PLAN_MODULE'` или `'MODULE_DISABLED'`                                                                                                                         |
+| `setEpoch(tenantId, epoch)`            | эпоха политики компании, целое ≥ 1                                                                                                                                           |
+| `setLimits(tenantId, limits)`          | сливается с текущими лимитами; `null` — без лимита; ключ вне копии или не целое ≥ 1 → `TypeError`; эпоха не меняется — видно после `clear()` или TTL                         |
+| `policyChanged(tenantId, subs?)`       | поднимает эпоху на 1 и возвращает конверт для `client.onPolicyChanged`; `actor` — `{clientId: 'verdeect-platform-cli', channel: 'system'}` без `accountId`, как CLI Platform |
+| `calls()`                              | журнал запросов к подделке `{path, body}`                                                                                                                                    |
 
 `FORBIDDEN` — это `grant` без права, `PLAN_MODULE` и `MODULE_DISABLED` — `setModule`; в `deny` они → `TypeError`.
 
@@ -78,4 +78,4 @@ const fake = createFakePlatform({
 
 - `make test-timing` печатает load average и число ядер. Если load выше числа ядер, выводится `[test-timing] WARN`: p99 AC-17 под нагрузкой недостоверен, прогон повторяют на тихой машине.
 - `TEST_TIMEOUT_SCALE=2..3` умножает `testTimeout` и `hookTimeout` конфигов Vitest на загруженной машине. Только локально и только вручную; в CI — 1. Тайм-ауты внутри spec-файлов не поднимаются: тест, упавший по тайм-ауту, сначала перезапускают отдельно.
-- Слой C поднимает стенд один раз на прогон (`globalSetup`), файлы идут по очереди (`fileParallelism: false`). Перед тестами стенд ждёт готовности Platform: `GET /health` на `METRICS_PORT` → 200 и подписчик очереди `platform`, опрос раз в 500 мс до `PLATFORM_READY_TIMEOUT_MS` (по умолчанию 120 000 мс; при истечении — ошибка с выводом контейнера), затем один прогревочный `POST /v1/authz/permissions`. Предел HTTP-запроса клиента в слое C — 2 с × `TEST_TIMEOUT_SCALE`.
+- Слой C поднимает стенд один раз на прогон (`globalSetup`), файлы идут по очереди (`fileParallelism: false`). БД стенд готовит формой по образу Platform (строка `[contract] db mode: kit|legacy`): есть `node_modules/.bin/verdeect-kit` (Platform `91b0123`+) — `kit`: `verdeect-kit db prepare --service platform` (`DB_OWNER_PASSWORD`, `DB_APP_PASSWORD`) → `db move-journal` → `db migrate`, команда успешна при коде 0 и без поля `error` в JSON-строках stdout; нет — `legacy`: `node dist/cli.js db:prepare` → `migrate`. Затем `plan:apply` (код 0 и `{"ok":true`). Перед тестами стенд ждёт готовности Platform: `GET /health` на `METRICS_PORT` → 200 и подписчик очереди `platform`, опрос раз в 500 мс. `PLATFORM_READY_TIMEOUT_MS` (по умолчанию 120 000 мс) — общий предел старта контейнера, опроса `/health` и прогревочного `POST /v1/authz/permissions`; при истечении — ошибка с выводом контейнера, сбой прогрева — только `WARN`. Предел HTTP-запроса клиента в слое C — 2 с × `TEST_TIMEOUT_SCALE`.

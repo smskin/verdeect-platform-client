@@ -18,7 +18,7 @@
 
 ## Структура проекта
 
-Этапы E1 (ядро), E2 (Nest и подделка), E3 (контракт и выпуск) и E4 (лимиты тарифа, 1.1.0; слой C — Platform `513886e`) готовы.
+Этапы E1 (ядро), E2 (Nest и подделка), E3 (контракт и выпуск), E4 (лимиты тарифа, 1.1.0; слой C — Platform `513886e`) и E5 (Platform на kit, 1.1.2; слой C — Platform `91b0123`) готовы.
 
 ```
 verdeect-platform-client/
@@ -53,6 +53,7 @@ verdeect-platform-client/
 │   │   ├── client-limits.spec.ts    # AC-20, UC-5 A1/A2: limits через клиент, кэш, отброшенные ключи
 │   │   ├── identity-events.spec.ts  # §7 п. 7: образцы конвертов identity.* слоя C по копии схемы
 │   │   ├── contract-broker.spec.ts  # AC-15 (C): разбор platform.policy.changed без Docker
+│   │   ├── contract-stand.spec.ts   # §7 п. 4–5: разбор вывода разовых команд и текст ошибки готовности без Docker
 │   │   └── support/              # подделанные fetch, часы, logger, metrics, TokenProvider; nest-app.ts; setup.ts (AC-19)
 │   ├── perf/                     # check.perf.spec.ts — p99 и память снимка (AC-17)
 │   ├── fixtures/                 # platform-events.schema.json, identity-events.schema.json (копии Platform), SOURCES.md
@@ -64,7 +65,7 @@ verdeect-platform-client/
 │   │   └── support/
 │   │       ├── global-setup.ts        # globalSetup: образ → стенд → provide; отчёт «[contract] Platform: <commit>»
 │   │       ├── platform-image.ts      # docker build ../verdeect-platform или PLATFORM_IMAGE; коммит, dirty
-│   │       ├── platform-stand.ts      # §7 п. 1–5, 9: сеть, PostgreSQL, RabbitMQ, издатель, db:prepare → migrate → plan:apply, сервис; готовность GET /health (PLATFORM_READY_TIMEOUT_MS) и прогрев permissions
+│   │       ├── platform-stand.ts      # §7 п. 1–5, 9: сеть, PostgreSQL, RabbitMQ, издатель, подготовка БД по образу (db mode: verdeect-kit db prepare → move-journal → migrate или db:prepare → migrate), plan:apply, сервис; готовность GET /health и прогрев permissions в общем пределе PLATFORM_READY_TIMEOUT_MS
 │   │       ├── identity-events.ts     # построители конвертов identity.*, проверка ajv по копиям схем
 │   │       ├── broker.ts              # очередь теста platform.policy.changed (ajv + zod), публикация identity.*
 │   │       ├── platform-cli.ts        # member:grant/revoke через docker exec, хвост docker logs
@@ -86,7 +87,7 @@ verdeect-platform-client/
 ├── Makefile                      # install, lint, analyse, build, pack-check, ci; уровни test, test-module, test-timing, test-integration (test-contract), test-load, test-full; clean
 ├── requirements/                 # пакеты требований
 │   ├── INDEX.md
-│   └── 0000-platform-client/     # prd.md, README.md (этапы E1–E3)
+│   └── 0000-platform-client/     # prd.md, README.md (этапы E1–E5)
 ├── .ai-factory/                  # контекст AI Factory
 ├── .claude/                      # скилы и агенты Claude Code
 ├── .serena/                      # настройки Serena MCP
@@ -105,7 +106,7 @@ make test            # слой U (test/unit) без perf; make test FILTER='AC-
 make test-module     # слой U по файлам: make test-module M='cache decide' (подстроки test/unit/<m>; без M — весь слой U)
 make test-timing     # perf AC-17 (--expose-gc), только на тихой машине; при load > ядер — [test-timing] WARN
 make build           # dist/ (.js + .d.ts)
-make test-integration # слой C в Testcontainers (локально, не в ci); PLATFORM_IMAGE=<ref> PLATFORM_COMMIT=<sha>; PLATFORM_DIR=<worktree>; PLATFORM_LIMITS=legacy — Platform без B.1; PLATFORM_CLI_TIMEOUT_MS=<мс> — предел вызова CLI (120000); PLATFORM_READY_TIMEOUT_MS=<мс> — предел готовности Platform: старт и GET /health (120000)
+make test-integration # слой C в Testcontainers (локально, не в ci); PLATFORM_IMAGE=<ref> PLATFORM_COMMIT=<sha>; PLATFORM_DIR=<клон>; PLATFORM_LIMITS=legacy — Platform без B.1; PLATFORM_CLI_TIMEOUT_MS=<мс> — предел вызова CLI (120000); PLATFORM_READY_TIMEOUT_MS=<мс> — общий предел старта, GET /health и прогрева Platform (120000)
 make test-contract   # псевдоним test-integration (docs/releasing.md, D10)
 make test-load       # нагрузочного набора нет — сообщение и код 0
 make test-full       # перед /aif-commit, слиянием и тегом: lint analyse test pack-check test-integration test-timing (те же PLATFORM_*)
@@ -121,7 +122,7 @@ make clean           # dist, coverage, *.tgz
 | Файл | Назначение |
 |---|---|
 | `requirements/0000-platform-client/prd.md` | источник требований: D1–D11, контракт Platform §3, API §5, AC-1–AC-19, NFR-1–NFR-6 |
-| `requirements/0000-platform-client/README.md` | этапы E1–E3, готовность |
+| `requirements/0000-platform-client/README.md` | этапы E1–E5, готовность |
 | `src/core/index.ts` | `@verdeect/platform-client` — публичный контракт ядра |
 | `src/core/client.ts` | `createPlatformAuthzClient`: оркестровка кэша, свежести и запросов |
 | `src/nest/index.ts` | `@verdeect/platform-client/nest` — модуль, декоратор, guard |
@@ -136,7 +137,7 @@ make clean           # dist, coverage, *.tgz
 | Документ | Путь | Описание |
 |---|---|---|
 | PRD | `requirements/0000-platform-client/prd.md` | требования к библиотеке |
-| Этапы | `requirements/0000-platform-client/README.md` | E1 «Ядро клиента», E2 «Nest и подделка», E3 «Контракт и выпуск» |
+| Этапы | `requirements/0000-platform-client/README.md` | E1 «Ядро клиента», E2 «Nest и подделка», E3 «Контракт и выпуск», E4 «Лимиты тарифа», E5 «Platform на kit» |
 | Индекс требований | `requirements/INDEX.md` | список пакетов требований |
 | README | `README.md` | установка, подключение, тесты потребителя, совместимость, API |
 | Ядро | `docs/getting-started.md` | клиент, токен, решение, события, кэш, метрики |
@@ -173,7 +174,7 @@ make clean           # dist, coverage, *.tgz
 - Ядро (`src/core/`) не импортирует `@nestjs/*`, `rxjs`, `reflect-metadata`, `@verdeect/auth`, `src/nest/`, `src/testing/`. `src/nest/` не импортирует `src/testing/`.
 - Копии из `verdeect-platform` не правятся вручную, только синхронизируются с источником. Коммит источника указывается в шапке.
 - Новый публичный экспорт добавляется вместе с TSDoc, строкой в README и в CHANGELOG. До первого выпуска (в CHANGELOG только `[Unreleased]`) достаточно TSDoc и записи в `[Unreleased]`; README обязателен с вехи выпуска.
-- Уровни тестов: во время работы — `make test` и `make test-module M=…` по затронутым файлам; перед `/aif-commit` и слиянием — `make test-full` (слой C — `PLATFORM_DIR=<worktree origin/main Platform>`, `../verdeect-platform` не переключать). `make test-timing` — на тихой машине. На загруженной машине — `TEST_TIMEOUT_SCALE=2..3` локально; тайм-ауты в spec-файлах не поднимать, тест, упавший по тайм-ауту, сначала перезапустить отдельно.
+- Уровни тестов: во время работы — `make test` и `make test-module M=…` по затронутым файлам; перед `/aif-commit` и слиянием — `make test-full` (слой C — `PLATFORM_DIR=<свой клон Platform на origin/main>`, в `../verdeect-platform` не переключать ветку и не писать в `.git`). `make test-timing` — на тихой машине. На загруженной машине — `TEST_TIMEOUT_SCALE=2..3` локально; тайм-ауты в spec-файлах не поднимать, тест, упавший по тайм-ауту, сначала перезапустить отдельно.
 - У слоя C нет проектов Vitest `shared` / `isolated` («Fast Test Suites» (3)): 4 файла делят один стенд `globalSetup` и идут по очереди (`fileParallelism: false`); время уходит на сборку образа и стенд, а не на импорт модулей; файлы не пишут `process.env`, не используют `vi.mock` / `vi.stubEnv` и не патчат прототипы. Проекты понадобятся, если появятся такие файлы или заметное время импорта.
 - `test/unit/package-manifest.spec.ts` (NFR-4: `dependencies` — только zod, peer optional) — тест требования, читает `package.json` без запуска приложения; остаётся в слое U. Проверок lockfile или `pnpm why` в тестах нет, поэтому `make analyse` — только `tsc --noEmit`.
 - Выпуск — только тег `vX.Y.Z` и CI. Перед тегом нужен зелёный `make test-full` против текущего `main` Platform (D10; `make test-contract` — псевдоним только слоя C). Ручной `npm publish` запрещён, исключение — 1.0.0 (D1).

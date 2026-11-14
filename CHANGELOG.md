@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-11-14
+
+Контракт Platform `v1`, PRD Platform v1.26; слой C пройден на `verdeect-platform` `91b0123` (Platform на `@verdeect/kit`). Код клиента не меняется: `onPolicyChanged` уже принимает все формы `actor` (AC-23).
+
+### Changed
+
+- Конверт `policyChanged` подделки — `actor: {clientId: 'verdeect-platform-cli', channel: 'system'}` без `accountId`, как CLI Platform. Тесты потребителя, сверяющие `actor` подделки дословно, нужно обновить.
+
 ## [1.1.1] - 2026-11-04
 
 Контракт Platform `v1`, PRD Platform v1.20; слой C пройден на `verdeect-platform` `10b757b`. Против Platform до `10b757b` тексты `ACCOUNT_DISABLED` и `CONTEXT_REVOKED` в ответах Platform отличаются от текстов пакета. Коды и контракт `v1` не меняются: тексты повторяют Platform дословно (D9), поэтому выпуск — патч, а не мажор. Тесты потребителя, сверяющие эти тексты или названия модулей подделки дословно, при переходе на 1.1.1 нужно обновить.

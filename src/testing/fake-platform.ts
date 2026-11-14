@@ -99,6 +99,8 @@ export interface FakePlatform {
     /**
      * Поднимает эпоху компании на 1 и возвращает конверт `platform.policy.changed` по схеме Platform
      * для `client.onPolicyChanged`. С непустым `subs` — `reason: member_roles`, иначе `modules`.
+     * `actor` — `{clientId: 'verdeect-platform-cli', channel: 'system'}` без `accountId`, как CLI
+     * Platform на `@verdeect/kit` (prd.md §5.5).
      */
     policyChanged(tenantId: string, subs?: readonly string[]): unknown;
     /** Копия журнала запросов к подделке по порядку. */
@@ -502,7 +504,7 @@ export function createFakePlatform(options: FakePlatformOptions = {}): FakePlatf
                 version: 1,
                 occurredAt: new Date().toISOString(),
                 tenant: state.tenant,
-                actor: { clientId: 'verdeect-platform', accountId: null, channel: 'system' },
+                actor: { clientId: 'verdeect-platform-cli', channel: 'system' },
                 subject: { kind: 'company', id: tenantId },
                 data,
                 traceId: null,

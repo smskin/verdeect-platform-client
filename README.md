@@ -7,11 +7,13 @@
 | Пакет   | Контракт Platform | PRD Platform и коммит слоя C | `@verdeect/auth` |
 | ------- | ----------------- | ---------------------------- | ---------------- |
 | `1.0.x` | `v1`              | v1.11, `7adb423`             | `^1.0.1`         |
-| `1.1.x` | `v1`              | v1.20, `10b757b`             | `^1.0.1`         |
+| `1.1.x` | `v1`              | v1.26, `91b0123`             | `^1.0.1`         |
 
 1.1.0 — Platform ≥ `513886e`; против более ранней в `limits` только `fileSizeMb`.
 
 1.1.1 — Platform ≥ `10b757b`; против более ранней тексты отказов `ACCOUNT_DISABLED` и `CONTEXT_REVOKED` в ответах Platform отличаются от текстов пакета.
+
+1.1.2 — Platform ≥ `91b0123` для слоя C; конверт `policyChanged` подделки — `actor` без `accountId`, как CLI Platform на `@verdeect/kit`.
 
 |             |                                                                                                                          |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -26,7 +28,7 @@
 Ставьте точную версию (D1): обновление — осознанный шаг по CHANGELOG.
 
 ```bash
-pnpm add @verdeect/platform-client@1.1.0 --save-exact
+pnpm add @verdeect/platform-client@1.1.2 --save-exact
 ```
 
 Ядру peer-зависимости не нужны. Подпуть `nest` требует `@nestjs/common`, `@nestjs/core`, `reflect-metadata`, `rxjs` и `@verdeect/auth` — ту же копию, что у сервиса.

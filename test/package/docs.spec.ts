@@ -119,6 +119,8 @@ describe('§4: документация пакета', () => {
         expect(compatibility).toMatch(/1\.1\.0 — Platform ≥ `[0-9a-f]{7,40}`/);
         // 1.1.1: тексты ACCOUNT_DISABLED и CONTEXT_REVOKED — Platform v1.20.
         expect(compatibility).toMatch(/1\.1\.1 — Platform ≥ `10b757b`/);
+        // 1.1.2: слой C — Platform на @verdeect/kit, actor подделки без accountId.
+        expect(compatibility).toMatch(/1\.1\.2 — Platform ≥ `91b0123`/);
     });
 
     it('§4 / AGENTS.md: каждое имя, экспортированное src/core/index.ts, src/nest/index.ts и src/testing/index.ts, есть в разделе README «API»', async () => {

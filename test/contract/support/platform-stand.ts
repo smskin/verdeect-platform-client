@@ -1,6 +1,7 @@
 // Стенд слоя C (prd.md §7 п. 1–5, п. 9, §10 п. 3, D10): PostgreSQL и RabbitMQ в сети Testcontainers,
-// exchange verdeect.events от теста, тестовый издатель через exposeHostPorts, разовые db:prepare → migrate →
-// plan:apply и сервис Platform; при сбое — ошибка с выводом упавшего контейнера.
+// exchange verdeect.events от теста, тестовый издатель через exposeHostPorts, подготовка БД по образу (db mode:
+// kit — verdeect-kit db prepare → db move-journal → db migrate; legacy — db:prepare → migrate), plan:apply и сервис
+// Platform в одном пределе PLATFORM_READY_TIMEOUT_MS; при сбое — ошибка с выводом упавшего контейнера.
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { Readable } from 'node:stream';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
@@ -38,6 +39,10 @@ const PROBE_TIMEOUT_MS = 5_000;
 /** Предел прогревочного POST /v1/authz/permissions: первый запрос загружает JWKS издателя и пулы БД. */
 const WARMUP_TIMEOUT_MS = 30_000;
 const ONE_SHOT_TIMEOUT_MS = 120_000;
+/** Рабочий каталог образа Platform: dist/cli.js и node_modules/.bin/verdeect-kit (docs/deployment.md Platform). */
+const PLATFORM_WORKDIR = '/app/apps/platform';
+/** CLI пакета @verdeect/kit в образе Platform @ 91b0123+. */
+const KIT_BIN = 'node_modules/.bin/verdeect-kit';
 const TOKEN_LIFETIME_SEC = 3600;
 
 /** Поднятый стенд: адреса для тестов и остановка. */
@@ -55,7 +60,10 @@ export interface PlatformStand {
     stop(): Promise<void>;
 }
 
-/** Пароль ≥ 16 символов (PrepareEnvSchema Platform); hex — без экранирования в URL. */
+/**
+ * Пароль ≥ 16 символов (kit: DB_OWNER_PASSWORD / DB_APP_PASSWORD; legacy: PrepareEnvSchema Platform);
+ * hex — без экранирования в URL.
+ */
 function secret(): string {
     return randomBytes(16).toString('hex');
 }
@@ -121,12 +129,66 @@ async function step<T>(name: string, work: () => Promise<T>, logs?: () => string
     }
 }
 
-/** Разовая команда CLI образа в сети стенда (п. 4): код 0 и {"ok":true в stdout, иначе ошибка с выводом. */
-async function runCli(
+/** Форма подготовки БД (п. 4): kit — CLI @verdeect/kit (Platform @ 91b0123+), legacy — dist/cli.js db:prepare. */
+export type DbMode = 'kit' | 'legacy';
+
+/** Правило проверки разовой команды (п. 4): ok — {"ok":true в stdout (CLI Platform), no-error — kit. */
+type OneShotCheck = 'ok' | 'no-error';
+
+/** Форма по коду проверки наличия verdeect-kit в образе: 0 — kit, 1 — legacy, иное — ошибка. */
+export function dbModeOf(code: number): DbMode {
+    if (code === 0) {
+        return 'kit';
+    }
+    if (code === 1) {
+        return 'legacy';
+    }
+    throw new Error(`проверка ${KIT_BIN}: неожиданный код ${code}`);
+}
+
+/** Итог команды kit (п. 4): код 0 и ни одна JSON-строка stdout не содержит поля error. */
+export function kitOutputOk(code: number, stdout: string): boolean {
+    if (code !== 0) {
+        return false;
+    }
+
+    return !stdout.split('\n').some((line) => {
+        const text = line.trim();
+        if (!text.startsWith('{')) {
+            return false;
+        }
+        try {
+            const parsed: unknown = JSON.parse(text);
+
+            return typeof parsed === 'object' && parsed !== null && 'error' in parsed;
+        } catch {
+            return false;
+        }
+    });
+}
+
+function outputOk(check: OneShotCheck, code: number, stdout: string): boolean {
+    if (check === 'no-error') {
+        return kitOutputOk(code, stdout);
+    }
+
+    return code === 0 && stdout.includes('{"ok":true');
+}
+
+/** Ошибка разовой команды с хвостами вывода (п. 9). */
+function oneShotError(name: string, code: number, stdout: string, stderr: string): Error {
+    return new Error(
+        `${name}: код ${code}\n--- stdout ---\n${tail(stdout)}\n--- stderr ---\n${tail(stderr)}`,
+    );
+}
+
+/** Разовая команда образа в сети стенда (п. 4); итог проверяется правилом check, иначе ошибка с выводом. */
+async function runOneShot(
     image: string,
     network: StartedNetwork,
     env: Readonly<Record<string, string>>,
-    args: readonly string[],
+    argv: readonly string[],
+    check: OneShotCheck,
 ): Promise<void> {
     // -e KEY без значения: Docker берёт значение из окружения процесса, секретов нет в argv и в логе.
     const envArgs = Object.keys(env).flatMap((key) => ['-e', key]);
@@ -137,22 +199,113 @@ async function runCli(
             '--rm',
             '--network',
             network.getName(),
+            '-w',
+            PLATFORM_WORKDIR,
             ...envArgs,
             image,
-            'node',
-            'dist/cli.js',
-            ...args,
+            ...argv,
         ],
         { env, timeoutMs: ONE_SHOT_TIMEOUT_MS },
     );
-    console.info(
-        `[contract] cli ${args.join(' ')}: код ${result.code}, stdout ${result.stdout.trim()}`,
+    const name = argv.join(' ');
+    console.info(`[contract] cli ${name}: код ${result.code}, stdout ${result.stdout.trim()}`);
+    if (!outputOk(check, result.code, result.stdout)) {
+        throw oneShotError(`cli ${name}`, result.code, result.stdout, result.stderr);
+    }
+}
+
+/** Форма подготовки БД по образу (решение плана E5): есть node_modules/.bin/verdeect-kit — kit. */
+async function detectDbMode(image: string): Promise<DbMode> {
+    const script = `process.exit(require('node:fs').existsSync('${KIT_BIN}')?0:1)`;
+    const result = await runProcess(
+        'docker',
+        ['run', '--rm', '-w', PLATFORM_WORKDIR, image, 'node', '-e', script],
+        { timeoutMs: ONE_SHOT_TIMEOUT_MS },
     );
-    if (result.code !== 0 || !result.stdout.includes('{"ok":true')) {
-        throw new Error(
-            `cli ${args.join(' ')}: код ${result.code}\n--- stdout ---\n${tail(result.stdout)}\n--- stderr ---\n${tail(result.stderr)}`,
+    try {
+        const mode = dbModeOf(result.code);
+        console.info(`[contract] db mode: ${mode}`);
+
+        return mode;
+    } catch (error) {
+        throw oneShotError(
+            error instanceof Error ? error.message : String(error),
+            result.code,
+            result.stdout,
+            result.stderr,
         );
     }
+}
+
+/** Шаг 4 (§7): подготовка БД формой mode и plan:apply. */
+async function prepareDatabase(
+    mode: DbMode,
+    image: string,
+    network: StartedNetwork,
+    urls: { readonly admin: string; readonly owner: string },
+    passwords: { readonly owner: string; readonly app: string },
+    serviceEnv: Readonly<Record<string, string>>,
+): Promise<void> {
+    const migratorEnv = { DATABASE_MIGRATOR_URL: urls.owner };
+    if (mode === 'kit') {
+        await step('п. 4: verdeect-kit db prepare', () =>
+            runOneShot(
+                image,
+                network,
+                {
+                    DATABASE_ADMIN_URL: urls.admin,
+                    DB_OWNER_PASSWORD: passwords.owner,
+                    DB_APP_PASSWORD: passwords.app,
+                },
+                [KIT_BIN, 'db', 'prepare', '--service', 'platform'],
+                'no-error',
+            ),
+        );
+        await step('п. 4: verdeect-kit db move-journal', () =>
+            runOneShot(
+                image,
+                network,
+                migratorEnv,
+                [KIT_BIN, 'db', 'move-journal', '--from', 'drizzle', '--to', 'platform'],
+                'no-error',
+            ),
+        );
+        await step('п. 4: verdeect-kit db migrate', () =>
+            runOneShot(
+                image,
+                network,
+                migratorEnv,
+                [KIT_BIN, 'db', 'migrate', '--folder', 'drizzle', '--schema', 'platform'],
+                'no-error',
+            ),
+        );
+    } else {
+        await step('п. 4: db:prepare', () =>
+            runOneShot(
+                image,
+                network,
+                {
+                    DATABASE_ADMIN_URL: urls.admin,
+                    PLATFORM_OWNER_PASSWORD: passwords.owner,
+                    PLATFORM_APP_PASSWORD: passwords.app,
+                },
+                ['node', 'dist/cli.js', 'db:prepare'],
+                'ok',
+            ),
+        );
+        await step('п. 4: migrate', () =>
+            runOneShot(image, network, migratorEnv, ['node', 'dist/cli.js', 'migrate'], 'ok'),
+        );
+    }
+    await step('п. 4: plan:apply', () =>
+        runOneShot(
+            image,
+            network,
+            serviceEnv,
+            ['node', 'dist/cli.js', 'plan:apply', '--file', 'seed/plans.json'],
+            'ok',
+        ),
+    );
 }
 
 /** Готовность (решение плана): очередь platform есть и у неё есть подписчик. */
@@ -180,16 +333,35 @@ async function platformQueueConsumers(amqpUrl: string): Promise<string> {
 }
 
 /**
+ * Текст ошибки готовности (п. 5, п. 9): заданный предел и остаток после старта контейнера; без опросов —
+ * предел исчерпан на старте контейнера.
+ */
+export function notReadyMessage(
+    limitMs: number,
+    remainingMs: number,
+    polls: number,
+    state: string,
+): string {
+    if (polls === 0) {
+        return `Platform не готов: предел PLATFORM_READY_TIMEOUT_MS=${limitMs} мс исчерпан на старте контейнера`;
+    }
+
+    return `Platform не готов: предел PLATFORM_READY_TIMEOUT_MS=${limitMs} мс, остаток ${remainingMs} мс истёк, опросов ${polls}: ${state}`;
+}
+
+/**
  * Готовность: GET /health Platform → 200 (FR-13: `select 1` в обоих пулах БД; 503, пока БД недоступна)
- * и подписчик очереди platform. Опрос раз в 500 мс до предела; итог — время ожидания и число опросов.
+ * и подписчик очереди platform. Опрос раз в 500 мс до остатка remainingMs общего предела limitMs; итог —
+ * время ожидания и число опросов.
  */
 async function waitReady(
     healthUrl: string,
     amqpUrl: string,
-    timeoutMs: number,
+    limitMs: number,
+    remainingMs: number,
 ): Promise<{ readonly elapsedMs: number; readonly polls: number }> {
     const startedAt = Date.now();
-    const deadline = startedAt + timeoutMs;
+    const deadline = startedAt + remainingMs;
     let state = 'не опрошен';
     let polls = 0;
     while (Date.now() < deadline) {
@@ -206,17 +378,20 @@ async function waitReady(
         }
         await new Promise((resolve) => setTimeout(resolve, READY_STEP_MS));
     }
-    throw new Error(
-        `сервис не готов за ${timeoutMs} мс (PLATFORM_READY_TIMEOUT_MS), опросов ${polls}: ${state}`,
-    );
+    throw new Error(notReadyMessage(limitMs, remainingMs, polls, state));
 }
 
 /**
  * Прогрев: один POST /v1/authz/permissions с сервисным токеном до тестов — первый запрос к холодному
  * сервису (JWKS издателя, пулы БД) не попадает в проверки AC-15 (C). Результат не проверяется, сбой — warn.
  */
-async function warmUp(platformUrl: string, token: string): Promise<void> {
+async function warmUp(platformUrl: string, token: string, budgetMs: number): Promise<void> {
     const startedAt = Date.now();
+    if (budgetMs <= 0) {
+        console.warn('[contract] WARN прогрев пропущен: предел PLATFORM_READY_TIMEOUT_MS исчерпан');
+
+        return;
+    }
     try {
         const response = await fetch(`${platformUrl}/v1/authz/permissions`, {
             method: 'POST',
@@ -227,7 +402,7 @@ async function warmUp(platformUrl: string, token: string): Promise<void> {
                 tenantId: randomUUID(),
                 act: 'human',
             }),
-            signal: AbortSignal.timeout(WARMUP_TIMEOUT_MS),
+            signal: AbortSignal.timeout(Math.min(WARMUP_TIMEOUT_MS, budgetMs)),
         });
         await response.text();
         console.info(
@@ -348,34 +523,21 @@ export async function startPlatformStand(platform: PlatformImage): Promise<Platf
             MODULES_READY: 'files,web,office,images',
             REPLICA_ID: 'contract',
         };
-        await step('п. 4: db:prepare', () =>
-            runCli(
-                platform.image,
-                startedNetwork,
-                {
-                    DATABASE_ADMIN_URL: adminUrl,
-                    PLATFORM_OWNER_PASSWORD: ownerPassword,
-                    PLATFORM_APP_PASSWORD: appPassword,
-                },
-                ['db:prepare'],
-            ),
-        );
-        await step('п. 4: migrate', () =>
-            runCli(platform.image, startedNetwork, { DATABASE_MIGRATOR_URL: ownerUrl }, [
-                'migrate',
-            ]),
-        );
-        await step('п. 4: plan:apply', () =>
-            runCli(platform.image, startedNetwork, serviceEnv, [
-                'plan:apply',
-                '--file',
-                'seed/plans.json',
-            ]),
+        const dbMode = await step('п. 4: форма подготовки БД', () => detectDbMode(platform.image));
+        await prepareDatabase(
+            dbMode,
+            platform.image,
+            startedNetwork,
+            { admin: adminUrl, owner: ownerUrl },
+            { owner: ownerPassword, app: appPassword },
+            serviceEnv,
         );
 
         // Шаг 5: сервис; старт — GET /ok (живость), готовность — GET /health, подписчик очереди platform
-        // и прогревочный запрос permissions.
+        // и прогревочный запрос permissions — в одном пределе PLATFORM_READY_TIMEOUT_MS (решение плана E5).
         const timeoutMs = readyTimeoutMs();
+        const deadline = Date.now() + timeoutMs;
+        const remaining = (): number => Math.max(0, deadline - Date.now());
         const serviceLogs = new LogBuffer();
         const service = await step(
             'п. 5: сервис Platform',
@@ -386,7 +548,7 @@ export async function startPlatformStand(platform: PlatformImage): Promise<Platf
                     .withEnvironment({ ...serviceEnv, METRICS_PORT: String(METRICS_PORT) })
                     .withExposedPorts(3000, METRICS_PORT)
                     .withWaitStrategy(Wait.forHttp('/ok', 3000).forStatusCode(200))
-                    .withStartupTimeout(timeoutMs)
+                    .withStartupTimeout(remaining())
                     .withLogConsumer(serviceLogs.consume)
                     .start(),
             () => serviceLogs.text(),
@@ -396,13 +558,13 @@ export async function startPlatformStand(platform: PlatformImage): Promise<Platf
         const healthUrl = `http://${service.getHost()}:${service.getMappedPort(METRICS_PORT)}/health`;
         const ready = await step(
             `п. 5: готовность ${healthUrl} (GET /health → 200 и подписчик очереди ${PLATFORM_QUEUE}, предел ${timeoutMs} мс)`,
-            () => waitReady(healthUrl, amqpUrl, timeoutMs),
+            () => waitReady(healthUrl, amqpUrl, timeoutMs, remaining()),
             () => serviceLogs.text(),
         );
         console.info(
             `[contract] п. 5: готовность за ${ready.elapsedMs} мс (опросов ${ready.polls})`,
         );
-        await warmUp(platformUrl, authzToken);
+        await warmUp(platformUrl, authzToken, remaining());
 
         return {
             platformUrl,

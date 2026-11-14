@@ -1,4 +1,4 @@
-// AC-15 (U, §3.5, §5.3): образцовые platform.policy.changed по схеме Platform проходят zod пакета; схема ответа permissions (§3.2).
+// AC-15 (U, §3.5, §5.3), AC-23 (формы actor): образцовые platform.policy.changed по схеме Platform проходят zod пакета; схема ответа permissions (§3.2).
 import { readFileSync } from 'node:fs';
 // ajv и ajv-formats — CJS: в NodeNext default-импорт = module.exports; функции/классы берём из .default (выставлен в рантайме).
 import Ajv2020Module from 'ajv/dist/2020.js';
@@ -11,6 +11,7 @@ import {
     parsePolicyChanged,
     parseTokenResponse,
 } from '../../src/core/schemas.js';
+import { ACTOR_FORMS } from './support/test-client.js';
 
 const schemaJson: unknown = JSON.parse(
     readFileSync(new URL('../fixtures/platform-events.schema.json', import.meta.url), 'utf8'),
@@ -108,6 +109,18 @@ describe('AC-15: platform.policy.changed — ajv по копии схемы Plat
                 expect(JSON.stringify(parsed.issues)).not.toContain('acme');
             }
         }
+    });
+
+    it.each(ACTOR_FORMS)('AC-23: actor %s проходит ajv по копии и zod пакета', (_name, actor) => {
+        const envelope = {
+            ...policyChanged({ tenantId: 'cmp_1', epoch: 8, reason: 'member_roles' }),
+            actor,
+        };
+        expectAjv(envelope);
+        expect(parsePolicyChanged(envelope)).toMatchObject({
+            ok: true,
+            event: { tenantId: 'cmp_1', epoch: 8 },
+        });
     });
 });
 
